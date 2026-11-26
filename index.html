@@ -1,0 +1,5287 @@
+extends Control
+
+signal avanti
+
+# ================= PERSONALIZZA QUI =================
+const TITOLO := "FUORICLASSE"
+const SOTTOTITOLO := "Il simulatore di carriera calcistica"
+const AUTORE := "CEPPI"
+const VERSIONE := "6.0"
+const FILE_SALVA := "user://carriera.save"
+const FILE_IMP := "user://impostazioni.cfg"
+# Nomi dei campionati personalizzati. Esempio: {"IT1": "Serie A", "IT2": "Serie B"}
+const NOMI_LEGHE := {}
+
+# ================= COLORI E DATI =================
+const BG := Color("0d211a")
+const BG_RIGA := Color("0f261d")
+const PANNELLO := Color("143024")
+const BORDO := Color("25483a")
+const VERDE := Color("3fbf78")
+const ORO := Color("f0c23a")
+const ROSSO := Color("e5695f")
+const TESTO := Color("eaf1e8")
+const GRIGIO := Color("97ab9d")
+const SCURO := Color("08170f")
+const COL_EV := {"me": ORO, "tg": VERDE, "og": ROSSO, "inj": ROSSO, "n": GRIGIO}
+
+const ATTR := {"tec": "Tecnica", "fis": "Fisico", "vel": "Velocità", "men": "Mentalità"}
+const PESI := {
+	"Portiere": {"men": 0.4, "fis": 0.3, "tec": 0.2, "vel": 0.1},
+	"Attaccante": {"tec": 0.3, "vel": 0.3, "fis": 0.15, "men": 0.25},
+	"Centrocampista": {"tec": 0.35, "men": 0.3, "fis": 0.2, "vel": 0.15},
+	"Difensore": {"fis": 0.35, "men": 0.3, "vel": 0.2, "tec": 0.15},
+}
+const KG := {"Attaccante": 0.42, "Centrocampista": 0.135, "Difensore": 0.045, "Portiere": 0.0}
+const KA := {"Attaccante": 0.225, "Centrocampista": 0.275, "Difensore": 0.09, "Portiere": 0.01}
+const PROM_TXT := {
+	"Titolare": "Il mister ti vede titolare fisso.",
+	"Alternanza": "Il mister conta di farti ruotare con gli altri.",
+	"Riserva": "Il mister ti vede come alternativa: giocherai poco.",
+}
+const TIPI_OFF := {
+	"rinnovo": "Rinnovo del contratto",
+	"nuova": "Proposta di trasferimento",
+	"prestito": "Prestito per una stagione",
+	"ritorno": "Ritorno al club che ti possiede",
+	"promozione": "Promozione in prima squadra",
+	"riscatto": "Il club vuole riscattarti",
+	"resta_giov": "Un altro anno nelle giovanili",
+}
+const POS := [
+	["Attaccante", "ATT", 0.5, 0.15, "Attaccante"],
+	["Ala sinistra", "AS", 0.2, 0.25, "Attaccante"],
+	["Ala destra", "AD", 0.8, 0.25, "Attaccante"],
+	["Trequartista", "TRQ", 0.5, 0.36, "Centrocampista"],
+	["Centrocampista", "CC", 0.5, 0.5, "Centrocampista"],
+	["Mediano", "MED", 0.5, 0.62, "Centrocampista"],
+	["Terzino sinistro", "TS", 0.16, 0.68, "Difensore"],
+	["Terzino destro", "TD", 0.84, 0.68, "Difensore"],
+	["Difensore centrale", "DC", 0.5, 0.76, "Difensore"],
+	["Portiere", "POR", 0.5, 0.91, "Portiere"],
+]
+# id, nome, stile dei nomi, club per ogni divisione, forza della prima divisione, ricchezza (stipendi)
+const PAESI := [
+	{"id": "IT", "nome": "Italia", "stile": "it", "div": [20, 20, 20, 18], "forza": 81, "ric": 1.15},
+	{"id": "EN", "nome": "Inghilterra", "stile": "en", "div": [20, 20, 20, 20], "forza": 85, "ric": 1.5},
+	{"id": "ES", "nome": "Spagna", "stile": "es", "div": [20, 20, 20, 18], "forza": 83, "ric": 1.25},
+	{"id": "DE", "nome": "Germania", "stile": "de", "div": [18, 18, 18, 18], "forza": 82, "ric": 1.25},
+	{"id": "FR", "nome": "Francia", "stile": "fr", "div": [20, 20, 18, 16], "forza": 78, "ric": 1.05},
+	{"id": "PT", "nome": "Portogallo", "stile": "pt", "div": [18, 18], "forza": 72, "ric": 0.8},
+	{"id": "NL", "nome": "Paesi Bassi", "stile": "nl", "div": [18, 18], "forza": 72, "ric": 0.85},
+	{"id": "BE", "nome": "Belgio", "stile": "nl", "div": [16, 16], "forza": 68, "ric": 0.8},
+	{"id": "TR", "nome": "Turchia", "stile": "tr", "div": [18, 18], "forza": 66, "ric": 0.7},
+	{"id": "SC", "nome": "Scozia", "stile": "en", "div": [12, 12], "forza": 62, "ric": 0.55},
+	{"id": "RU", "nome": "Russia", "stile": "ru", "div": [16, 16], "forza": 64, "ric": 0.7},
+	{"id": "UA", "nome": "Ucraina", "stile": "ru", "div": [16], "forza": 60, "ric": 0.5},
+	{"id": "GR", "nome": "Grecia", "stile": "gr", "div": [14, 14], "forza": 60, "ric": 0.5},
+	{"id": "CH", "nome": "Svizzera", "stile": "de", "div": [12, 12], "forza": 60, "ric": 0.7},
+	{"id": "AT", "nome": "Austria", "stile": "de", "div": [12, 12], "forza": 60, "ric": 0.7},
+	{"id": "BR", "nome": "Brasile", "stile": "pt", "div": [20, 20, 20], "forza": 74, "ric": 0.75},
+	{"id": "AR", "nome": "Argentina", "stile": "es", "div": [20, 20], "forza": 70, "ric": 0.55},
+	{"id": "MX", "nome": "Messico", "stile": "es", "div": [18, 18], "forza": 66, "ric": 0.65},
+	{"id": "US", "nome": "Stati Uniti", "stile": "en", "div": [20, 16], "forza": 64, "ric": 0.85},
+	{"id": "CO", "nome": "Colombia", "stile": "es", "div": [16], "forza": 58, "ric": 0.4},
+	{"id": "JP", "nome": "Giappone", "stile": "jp", "div": [18, 18], "forza": 64, "ric": 0.8},
+	{"id": "KR", "nome": "Corea del Sud", "stile": "jp", "div": [12, 12], "forza": 60, "ric": 0.7},
+	{"id": "SA", "nome": "Arabia Saudita", "stile": "ar", "div": [16], "forza": 66, "ric": 1.4},
+	{"id": "CN", "nome": "Cina", "stile": "cn", "div": [16, 16], "forza": 58, "ric": 1.0},
+	{"id": "AU", "nome": "Australia", "stile": "en", "div": [12], "forza": 54, "ric": 0.55},
+]
+const STILI := {
+	"it": {"sep": "", "p": ["Monte", "Castel", "Villa", "Porto", "Borgo", "Rocca", "Valle", "Torre"], "s": ["sole", "rosso", "verde", "bianco", "alto", "mare", "lago", "fiore"], "m": ["AC {c}", "{c} Calcio", "Virtus {c}", "Unione {c}", "Sporting {c}", "Atletico {c}"]},
+	"en": {"sep": "", "p": ["Ash", "Oak", "North", "West", "East", "Stone", "River", "King"], "s": ["bury", "ford", "ton", "wick", "field", "ham", "port", "mouth"], "m": ["{c} FC", "{c} United", "{c} Town", "{c} City", "{c} Rovers", "{c} Athletic"]},
+	"es": {"sep": " ", "p": ["Villa", "San", "Santa", "Puerto", "Monte", "Costa", "Alto", "Nueva"], "s": ["verde", "claro", "mar", "sol", "blanca", "hermosa", "dorada", "fuerte"], "m": ["CD {c}", "Real {c}", "Atlético {c}", "Deportivo {c}", "{c} CF", "Racing {c}"]},
+	"de": {"sep": "", "p": ["Eichen", "Berg", "Wald", "Nord", "Süd", "Stein", "Hohen", "Rhein"], "s": ["burg", "dorf", "stadt", "feld", "bach", "hausen", "heim", "tal"], "m": ["FC {c}", "SV {c}", "Borussia {c}", "{c} 04", "Eintracht {c}", "TSV {c}"]},
+	"fr": {"sep": "", "p": ["Saint-", "Beau", "Mont", "Val", "Bel", "Château", "Port", "Roche"], "s": ["marais", "mont", "pré", "rive", "fort", "lac", "ville", "bois"], "m": ["AS {c}", "FC {c}", "Olympique {c}", "Racing {c}", "US {c}", "{c} Athlétic"]},
+	"pt": {"sep": " ", "p": ["Vila", "São", "Santa", "Porto", "Monte", "Serra", "Alto", "Nova"], "s": ["mar", "verde", "real", "branca", "dourada", "forte", "bela", "azul"], "m": ["SC {c}", "{c} FC", "Sporting {c}", "Atlético {c}", "CF {c}", "União {c}"]},
+	"nl": {"sep": "", "p": ["Zand", "Water", "Groen", "Noord", "Oost", "Hoog", "Wijk", "Stad"], "s": ["vliet", "dijk", "veld", "stad", "haven", "brug", "kerk", "dam"], "m": ["FC {c}", "SV {c}", "{c} Vitesse", "Sparta {c}", "{c} United", "VV {c}"]},
+	"tr": {"sep": "", "p": ["Yeni", "Kara", "Ak", "Büyük", "Güney", "Kuzey", "Altın", "Taş"], "s": ["kale", "deniz", "dağ", "köy", "pınar", "tepe", "ova", "göl"], "m": ["{c}spor", "{c} FK", "{c} Belediyespor", "{c} SK", "Genç {c}", "{c} Gücü"]},
+	"ru": {"sep": "", "p": ["Nova", "Stary", "Krasno", "Belo", "Zele", "Sever", "Yuzh", "Vol"], "s": ["gorod", "grad", "sk", "ovo", "dar", "ya", "burg", "polye"], "m": ["FK {c}", "{c} Dinamo", "Spartak {c}", "Lokomotiv {c}", "Torpedo {c}", "{c} Zenit"]},
+	"gr": {"sep": "", "p": ["Neo", "Pali", "Agia", "Megalo", "Kato", "Ano", "Xryso", "Mavro"], "s": ["polis", "chori", "limni", "vouno", "kampos", "nisi", "gefyra", "lofos"], "m": ["{c} FC", "AE {c}", "PAS {c}", "Atromitos {c}", "{c} Athlitiki", "GS {c}"]},
+	"jp": {"sep": "", "p": ["Sakura", "Fuji", "Kawa", "Yama", "Hoshi", "Umi", "Taka", "Mori"], "s": ["gawa", "yama", "hara", "saki", "mura", "ta", "oka", "zawa"], "m": ["{c} FC", "{c} United", "FC {c}", "{c} Athletic", "{c} Sports Club", "{c} Vellos"]},
+	"ar": {"sep": "", "p": ["Al Wadi", "Al Jabal", "Al Bahr", "Al Fajr", "Al Najm", "Al Reef", "Al Sahra", "Al Qamar"], "s": [""], "m": ["{c} SC", "{c} FC", "{c} United", "{c} Club", "Nadi {c}", "{c} Stars"]},
+	"cn": {"sep": "", "p": ["Long", "Hua", "Jin", "Bei", "Nan", "Dong", "Xi", "Qing"], "s": ["jiang", "shan", "hai", "cheng", "yuan", "feng", "lin", "an"], "m": ["{c} FC", "{c} United", "FC {c}", "{c} Athletic", "{c} Dragons", "{c} Sports Club"]},
+}
+const COLORI_KIT := [
+	Color("c0392b"), Color("1f618d"), Color("1e8449"), Color("e67e22"), Color("6c3483"), Color("f4f6f7"),
+	Color("922b21"), Color("117a65"), Color("1b2a6b"), Color("d35400"), Color("f1c40f"), Color("17202a"),
+	Color("138d75"), Color("8e44ad"), Color("2874a6"), Color("e74c3c"),
+]
+const PARTENZE := {
+	"giovanile": {"nome": "Settore giovanile (17 anni)", "eta": 17, "base": 50, "tl": 52, "anni": 3, "rep": 6},
+	"promessa": {"nome": "Giovane promessa (20 anni)", "eta": 20, "base": 62, "tl": 62, "anni": 3, "rep": 16},
+	"affermato": {"nome": "Professionista affermato (27 anni)", "eta": 27, "base": 79, "tl": 80, "anni": 3, "rep": 55},
+	"veterano": {"nome": "Veterano (34 anni)", "eta": 34, "base": 77, "tl": 72, "anni": 1, "rep": 60},
+}
+const CHIAVI_PARTENZA := ["giovanile", "promessa", "affermato", "veterano"]
+const NOMI := ["Luca", "Marco", "Diego", "Tomas", "Mateo", "Andrea", "Jonas", "Rafael", "Nico", "Elias"]
+const COGNOMI := ["Valdera", "Ferrante", "Costa", "Brandt", "Morell", "Santoro", "Keller", "Ibarra", "Rossetti", "Duval"]
+const EVENTI := [
+	{"id": "sponsor", "m": 0, "t": "Proposta di uno sponsor", "x": "Un marchio ti vuole come volto di una campagna.", "c": ["Accetta", "Rifiuta"]},
+	{"id": "spogliatoio", "m": 0, "t": "Lo spogliatoio ti cerca", "x": "I compagni più giovani chiedono il tuo aiuto.", "c": ["Aiutali", "Pensa a te"]},
+	{"id": "convocazione", "m": 0, "t": "Convocazione in Nazionale", "x": "Il commissario tecnico ti ha inserito tra i convocati.", "c": ["Accetta con orgoglio", "Chiedi di restare a riposo"]},
+	{"id": "mister", "m": 1, "t": "Tensione con l'allenatore", "x": "Dopo una sostituzione contestata volano parole grosse.", "c": ["Chiedi scusa", "Rispondi a tono"]},
+	{"id": "social", "m": 1, "t": "Polemica sui social", "x": "Un tuo vecchio post riemerge e diventa un caso.", "c": ["Chiedi scusa pubblicamente", "Ignora tutto"]},
+	{"id": "rivale", "m": 1, "t": "Un rivale ti insidia il posto", "x": "In squadra è arrivato un giocatore forte nel tuo ruolo.", "c": ["Rispondi sul campo", "Parla con il mister"]},
+	{"id": "famiglia", "m": 2, "t": "Problema in famiglia", "x": "Una situazione delicata a casa ti distrae dagli allenamenti.", "c": ["Prenditi qualche giorno", "Resta concentrato"]},
+	{"id": "mercato", "m": 2, "t": "Voci di mercato", "x": "La stampa parla di un tuo possibile addio.", "c": ["Dichiara massimo impegno", "Lascia aperta la porta"]},
+]
+
+var G: Dictionary = {}
+var S: Dictionary = {
+	"partenza": "promessa", "pos": "Attaccante", "num": 9, "nome": "", "drama": 1, "diff": 1, "paese": "",
+	"av": {"pelle": 1, "capelli": 1, "col_cap": 1, "barba": 0, "occhi": 0, "scarpini": 0, "corp": 1, "acc": 0, "acc2": 0, "gioiello": 0, "tatt": 0},
+	"att": {}, "off": [], "mondo": {},
+}
+var box: VBoxContainer
+var scroll: ScrollContainer
+var lbl_pos: Label
+var occupato: bool = false
+var mp_a: Label
+var mp_b: Label
+var mp_min: Label
+var mp_fase: Label
+var mp_prog: ProgressBar
+var mp_tick: VBoxContainer
+var mp_campo: CampoPartita
+var preview: AvatarView
+var pose_prev: String = "fermo"
+var swatch_ref: Dictionary = {}
+var swatch_col: Dictionary = {}
+var grid_ref: Dictionary = {}
+var tab_btns: Array = []
+var tab_sez: Array = []
+var tab_prev: int = 0
+var audio_on: bool = true
+var suoni: Dictionary = {}
+var lettori: Dictionary = {}
+var _tl: int = 60
+var mondo_paese: String = "IT"
+var _fb: FontVariation
+
+
+# ================= AVVIO E STILE =================
+func _ready() -> void:
+	var fin: Window = get_window()
+	fin.title = TITOLO
+	fin.content_scale_size = Vector2i(1280, 720)
+	fin.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	fin.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	fin.min_size = Vector2i(960, 540)
+	_fb = FontVariation.new()
+	_fb.base_font = ThemeDB.fallback_font
+	_fb.variation_embolden = 0.6
+	carica_impostazioni()
+	theme = crea_tema()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var sfondo: SfondoView = SfondoView.new()
+	sfondo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(sfondo)
+	scroll = ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
+	var cen: CenterContainer = CenterContainer.new()
+	cen.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(cen)
+	var margine: MarginContainer = MarginContainer.new()
+	margine.add_theme_constant_override("margin_top", 22)
+	margine.add_theme_constant_override("margin_bottom", 44)
+	margine.add_theme_constant_override("margin_left", 20)
+	margine.add_theme_constant_override("margin_right", 20)
+	cen.add_child(margine)
+	box = VBoxContainer.new()
+	box.custom_minimum_size = Vector2(1080, 0)
+	box.add_theme_constant_override("separation", 16)
+	margine.add_child(box)
+	titolo()
+	precarica_suoni()
+
+
+func stile(col: Color, bordo: Color = BORDO, r: int = 10, spess: int = 1, m: int = 12, ombra: bool = false) -> StyleBoxFlat:
+	var s: StyleBoxFlat = StyleBoxFlat.new()
+	s.bg_color = col
+	s.border_color = bordo
+	s.set_corner_radius_all(r)
+	s.set_border_width_all(spess)
+	s.set_content_margin_all(m)
+	if ombra:
+		s.shadow_color = Color(0, 0, 0, 0.35)
+		s.shadow_size = 10
+		s.shadow_offset = Vector2(0, 4)
+	return s
+
+
+func stile_btn(bg: Color, bd: Color, premuto: bool = false) -> StyleBoxFlat:
+	var s: StyleBoxFlat = StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = bd
+	s.set_corner_radius_all(13)
+	s.border_width_left = 1
+	s.border_width_right = 1
+	s.border_width_top = 1
+	if premuto:
+		s.border_width_bottom = 1
+		s.content_margin_top = 13
+	else:
+		s.border_width_bottom = 4
+		s.content_margin_top = 10
+	s.content_margin_left = 16
+	s.content_margin_right = 16
+	s.content_margin_bottom = 8
+	s.shadow_color = Color(0, 0, 0, 0.3)
+	s.shadow_size = 6
+	s.shadow_offset = Vector2(0, 3)
+	return s
+
+
+func crea_tema() -> Theme:
+	var t: Theme = Theme.new()
+	t.default_font_size = 17
+	for tipo in ["Button", "OptionButton"]:
+		t.set_stylebox("normal", tipo, stile_btn(Color("1d4030"), Color("0e271c")))
+		t.set_stylebox("hover", tipo, stile_btn(Color("27533f"), VERDE))
+		t.set_stylebox("pressed", tipo, stile_btn(Color("163428"), VERDE, true))
+		t.set_stylebox("focus", tipo, stile(Color(0, 0, 0, 0), ORO, 13, 2))
+		t.set_color("font_color", tipo, TESTO)
+		t.set_color("font_hover_color", tipo, TESTO)
+		t.set_color("font_pressed_color", tipo, TESTO)
+	t.set_stylebox("normal", "LineEdit", stile(Color("0b1c15"), Color("2f6a50"), 10, 1, 10))
+	t.set_color("font_color", "LineEdit", TESTO)
+	t.set_color("font_color", "Label", TESTO)
+	t.set_stylebox("panel", "PopupMenu", stile(Color("12281e"), Color("2f6a50"), 10, 1, 8))
+	t.set_stylebox("hover", "PopupMenu", stile(VERDE.darkened(0.45), VERDE, 6, 0, 4))
+	t.set_color("font_color", "PopupMenu", TESTO)
+	t.set_color("font_hover_color", "PopupMenu", TESTO)
+	t.set_stylebox("scroll", "VScrollBar", stile(Color(0, 0, 0, 0.25), Color(0, 0, 0, 0), 8, 0, 0))
+	t.set_stylebox("grabber", "VScrollBar", stile(Color("3a8f66"), Color(0, 0, 0, 0), 8, 0, 0))
+	t.set_stylebox("grabber_highlight", "VScrollBar", stile(VERDE, Color(0, 0, 0, 0), 8, 0, 0))
+	t.set_stylebox("grabber_pressed", "VScrollBar", stile(ORO, Color(0, 0, 0, 0), 8, 0, 0))
+	return t
+
+
+# ================= IMPOSTAZIONI E AUDIO =================
+func carica_impostazioni() -> void:
+	var cf: ConfigFile = ConfigFile.new()
+	if cf.load(FILE_IMP) == OK:
+		audio_on = bool(cf.get_value("audio", "on", true))
+
+
+func salva_impostazioni() -> void:
+	var cf: ConfigFile = ConfigFile.new()
+	cf.set_value("audio", "on", audio_on)
+	cf.save(FILE_IMP)
+
+
+func _snd_fischio(dur: float) -> PackedByteArray:
+	var rate: int = 16000
+	var n: int = int(dur * float(rate))
+	var d: PackedByteArray = PackedByteArray()
+	d.resize(n * 2)
+	var ph: float = 0.0
+	for i in n:
+		var t: float = float(i) / float(rate)
+		var f: float = 2750.0 + 110.0 * sin(TAU * 24.0 * t)
+		ph += TAU * f / float(rate)
+		var env: float = minf(1.0, t / 0.02) * minf(1.0, (dur - t) / 0.12)
+		var trem: float = 0.82 + 0.18 * sin(TAU * 38.0 * t)
+		var v: float = (sin(ph) * 0.5 + randf_range(-0.05, 0.05)) * env * trem
+		d.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 30000.0))
+	return d
+
+
+func _snd_click() -> PackedByteArray:
+	var rate: int = 16000
+	var n: int = int(0.14 * float(rate))
+	var d: PackedByteArray = PackedByteArray()
+	d.resize(n * 2)
+	for i in n:
+		var t: float = float(i) / float(rate)
+		var v: float = randf_range(-1.0, 1.0) * exp(-t * 220.0)
+		if t > 0.06:
+			v += randf_range(-1.0, 1.0) * exp(-(t - 0.06) * 260.0) * 0.8
+		d.encode_s16(i * 2, int(clampf(v * 0.5, -1.0, 1.0) * 30000.0))
+	return d
+
+
+func _snd_ui() -> PackedByteArray:
+	var rate: int = 16000
+	var n: int = int(0.07 * float(rate))
+	var d: PackedByteArray = PackedByteArray()
+	d.resize(n * 2)
+	var ph: float = 0.0
+	for i in n:
+		var t: float = float(i) / float(rate)
+		ph += TAU * (900.0 + 700.0 * t / 0.07) / float(rate)
+		var v: float = sin(ph) * exp(-t * 45.0) * 0.5
+		d.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 30000.0))
+	return d
+
+
+func _snd_folla(dur: float, impulso: bool) -> PackedByteArray:
+	var rate: int = 16000
+	var n: int = int(dur * float(rate))
+	var d: PackedByteArray = PackedByteArray()
+	d.resize(n * 2)
+	var lp: float = 0.0
+	var lp2: float = 0.0
+	for i in n:
+		var t: float = float(i) / float(rate)
+		var x: float = randf_range(-1.0, 1.0)
+		lp += 0.18 * (x - lp)
+		lp2 += 0.55 * (x - lp2)
+		var env: float = 0.0
+		if impulso:
+			env = minf(1.0, t / 0.12) * exp(-t / 1.1)
+		else:
+			env = sin(PI * t / dur)
+		var md: float = 0.78 + 0.22 * sin(TAU * 3.3 * t)
+		var v: float = (lp * 2.2 + lp2 * 0.5) * env * md
+		d.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 30000.0))
+	return d
+
+
+func _snd_fanfara() -> PackedByteArray:
+	var rate: int = 16000
+	var freqs: Array = [523.25, 659.25, 783.99, 1046.5]
+	var n: int = int(1.4 * float(rate))
+	var d: PackedByteArray = PackedByteArray()
+	d.resize(n * 2)
+	var ph: float = 0.0
+	for i in n:
+		var t: float = float(i) / float(rate)
+		var idx: int = 0
+		var t0: float = 0.0
+		if t >= 0.6:
+			idx = 3
+			t0 = 0.6
+		elif t >= 0.4:
+			idx = 2
+			t0 = 0.4
+		elif t >= 0.2:
+			idx = 1
+			t0 = 0.2
+		var tn: float = t - t0
+		ph += TAU * float(freqs[idx]) / float(rate)
+		var decad: float = 3.0
+		if idx == 3:
+			decad = 1.6
+		var env: float = minf(1.0, tn / 0.015) * exp(-tn * decad)
+		var v: float = (sin(ph) + 0.45 * sin(2.0 * ph) + 0.22 * sin(3.0 * ph)) * 0.26 * env
+		d.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 30000.0))
+	return d
+
+
+func _snd_calcio() -> PackedByteArray:
+	var rate: int = 16000
+	var n: int = int(0.2 * float(rate))
+	var d: PackedByteArray = PackedByteArray()
+	d.resize(n * 2)
+	var ph: float = 0.0
+	for i in n:
+		var t: float = float(i) / float(rate)
+		var f: float = 170.0 * exp(-t * 12.0) + 55.0
+		ph += TAU * f / float(rate)
+		var v: float = sin(ph) * exp(-t * 16.0) * 0.9 + randf_range(-1.0, 1.0) * exp(-t * 60.0) * 0.3
+		d.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 30000.0))
+	return d
+
+
+func _genera(nome: String) -> AudioStreamWAV:
+	var dati: PackedByteArray = PackedByteArray()
+	if nome == "fischio":
+		dati = _snd_fischio(0.65)
+	elif nome == "fischio_f":
+		dati = _snd_fischio(1.1)
+	elif nome == "click":
+		dati = _snd_click()
+	elif nome == "ui":
+		dati = _snd_ui()
+	elif nome == "folla":
+		dati = _snd_folla(2.6, false)
+	elif nome == "gol":
+		dati = _snd_folla(2.2, true)
+	elif nome == "fanfara":
+		dati = _snd_fanfara()
+	else:
+		dati = _snd_calcio()
+	var w: AudioStreamWAV = AudioStreamWAV.new()
+	w.format = AudioStreamWAV.FORMAT_16_BITS
+	w.mix_rate = 16000
+	w.stereo = false
+	w.data = dati
+	return w
+
+
+func precarica_suoni() -> void:
+	for nome in ["ui", "fischio", "fischio_f", "click", "folla", "gol", "fanfara", "calcio"]:
+		await get_tree().process_frame
+		if not suoni.has(nome):
+			suoni[nome] = _genera(nome)
+
+
+func suono(nome: String) -> void:
+	if not audio_on:
+		return
+	if not suoni.has(nome):
+		suoni[nome] = _genera(nome)
+	if not lettori.has(nome):
+		var p: AudioStreamPlayer = AudioStreamPlayer.new()
+		p.stream = suoni[nome]
+		p.volume_db = -4.0
+		add_child(p)
+		lettori[nome] = p
+	var pl: AudioStreamPlayer = lettori[nome]
+	if nome == "click" and pl.playing:
+		return
+	pl.play()
+
+
+func _ui_click() -> void:
+	suono("ui")
+
+
+func _snd_scatto() -> void:
+	suono("click")
+
+
+func _snd_alzata() -> void:
+	suono("folla")
+
+
+func _toggle_audio() -> void:
+	audio_on = not audio_on
+	salva_impostazioni()
+	titolo()
+
+
+func _toggle_audio_hub() -> void:
+	audio_on = not audio_on
+	salva_impostazioni()
+	gioco()
+
+
+# ================= COMPONENTI GRAFICI =================
+func svuota() -> void:
+	for f in box.get_children():
+		box.remove_child(f)
+		f.queue_free()
+	scroll.scroll_vertical = 0
+	box.modulate.a = 0.0
+	var tw: Tween = create_tween()
+	tw.tween_property(box, "modulate:a", 1.0, 0.28)
+
+
+func lab(testo: String, dim: int = 18, col: Color = TESTO, genitore: Node = null, wrap: bool = true) -> Label:
+	var l: Label = Label.new()
+	l.text = testo
+	l.add_theme_font_size_override("font_size", dim)
+	l.add_theme_color_override("font_color", col)
+	if dim >= 24:
+		l.add_theme_font_override("font", _fb)
+	if wrap:
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	else:
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var g: Node = box
+	if genitore != null:
+		g = genitore
+	g.add_child(l)
+	return l
+
+
+func centra(l: Label) -> void:
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
+func banner(titolo_b: String, sotto_b: String = "", col: Color = ORO) -> void:
+	var b: BannerView = BannerView.new()
+	b.titolo_b = titolo_b
+	b.sotto_b = sotto_b
+	b.col = col
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(b)
+
+
+func intest(testo: String, genitore: Node = null, dim: int = 22) -> void:
+	var g: Node = box
+	if genitore != null:
+		g = genitore
+	var h: HBoxContainer = HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	g.add_child(h)
+	var cr: ColorRect = ColorRect.new()
+	cr.color = ORO
+	cr.custom_minimum_size = Vector2(5, 24)
+	cr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(cr)
+	lab(testo, dim, TESTO, h, false)
+
+
+func scheda(bordo: Color = BORDO, genitore: Node = null) -> VBoxContainer:
+	var p: Card = Card.new()
+	if bordo == BORDO:
+		p.accent = Color("3a8f66")
+	else:
+		p.accent = bordo
+	p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var v: VBoxContainer = VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	p.add_child(v)
+	var g: Node = box
+	if genitore != null:
+		g = genitore
+	g.add_child(p)
+	return v
+
+
+func bott(testo: String, azione: Callable, genitore: Node = null, primario: bool = false) -> Button:
+	var b: Button = Button.new()
+	b.text = testo
+	b.custom_minimum_size = Vector2(0, 50)
+	b.add_theme_font_size_override("font_size", 18)
+	if primario:
+		b.add_theme_stylebox_override("normal", stile_btn(VERDE, VERDE.darkened(0.45)))
+		b.add_theme_stylebox_override("hover", stile_btn(VERDE.lightened(0.14), ORO.darkened(0.3)))
+		b.add_theme_stylebox_override("pressed", stile_btn(VERDE.darkened(0.12), ORO.darkened(0.3), true))
+		b.add_theme_color_override("font_color", SCURO)
+		b.add_theme_color_override("font_hover_color", SCURO)
+		b.add_theme_color_override("font_pressed_color", SCURO)
+	b.pressed.connect(azione)
+	b.pressed.connect(_ui_click)
+	var g: Node = box
+	if genitore != null:
+		g = genitore
+	g.add_child(b)
+	return b
+
+
+func bott_nav(testo: String, azione: Callable, genitore: Node, attivo: bool) -> Button:
+	var b: Button = Button.new()
+	b.text = testo
+	b.custom_minimum_size = Vector2(0, 46)
+	b.add_theme_font_size_override("font_size", 18)
+	var vuoto: StyleBoxFlat = StyleBoxFlat.new()
+	vuoto.bg_color = Color(0, 0, 0, 0)
+	vuoto.set_corner_radius_all(10)
+	vuoto.set_content_margin_all(8)
+	vuoto.border_width_bottom = 4
+	vuoto.border_color = Color(0, 0, 0, 0)
+	var hov: StyleBoxFlat = StyleBoxFlat.new()
+	hov.bg_color = Color(1, 1, 1, 0.08)
+	hov.set_corner_radius_all(10)
+	hov.set_content_margin_all(8)
+	hov.border_width_bottom = 4
+	hov.border_color = Color(1, 1, 1, 0.18)
+	var att: StyleBoxFlat = StyleBoxFlat.new()
+	att.bg_color = Color(0.94, 0.76, 0.23, 0.12)
+	att.set_corner_radius_all(10)
+	att.set_content_margin_all(8)
+	att.border_width_bottom = 4
+	att.border_color = ORO
+	if attivo:
+		b.add_theme_stylebox_override("normal", att)
+		b.add_theme_color_override("font_color", ORO)
+		b.add_theme_color_override("font_hover_color", ORO)
+	else:
+		b.add_theme_stylebox_override("normal", vuoto)
+		b.add_theme_color_override("font_color", GRIGIO)
+		b.add_theme_color_override("font_hover_color", TESTO)
+	b.add_theme_stylebox_override("hover", hov)
+	b.add_theme_stylebox_override("pressed", att)
+	b.add_theme_stylebox_override("focus", vuoto)
+	b.pressed.connect(azione)
+	b.pressed.connect(_ui_click)
+	genitore.add_child(b)
+	return b
+
+
+func tile_menu(titolo_t: String, sub: String, azione: Callable, genitore: Node, primario: bool) -> Button:
+	var b: Button = Button.new()
+	b.custom_minimum_size = Vector2(0, 88)
+	if primario:
+		b.add_theme_stylebox_override("normal", stile_btn(VERDE, VERDE.darkened(0.45)))
+		b.add_theme_stylebox_override("hover", stile_btn(VERDE.lightened(0.14), ORO.darkened(0.3)))
+		b.add_theme_stylebox_override("pressed", stile_btn(VERDE.darkened(0.12), ORO.darkened(0.3), true))
+	b.pressed.connect(azione)
+	b.pressed.connect(_ui_click)
+	genitore.add_child(b)
+	var m: MarginContainer = MarginContainer.new()
+	m.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_theme_constant_override("margin_left", 22)
+	m.add_theme_constant_override("margin_right", 22)
+	m.add_theme_constant_override("margin_top", 6)
+	m.add_theme_constant_override("margin_bottom", 8)
+	b.add_child(m)
+	var v: VBoxContainer = VBoxContainer.new()
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 0)
+	m.add_child(v)
+	var c1: Color = TESTO
+	var c2: Color = GRIGIO
+	if primario:
+		c1 = SCURO
+		c2 = Color("0f3a24")
+	var l1: Label = lab(titolo_t, 26, c1, v, false)
+	l1.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var l2: Label = lab(sub, 15, c2, v, false)
+	l2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return b
+
+
+func chip(genitore: Node, cap: String, val: String, col: Color) -> void:
+	var c: Card = Card.new()
+	c.accent = col
+	c.set_m(12)
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	genitore.add_child(c)
+	var v: VBoxContainer = VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	c.add_child(v)
+	lab(cap, 13, GRIGIO, v, false)
+	lab(val, 26, col, v, false)
+
+
+func barra(nome: String, v: int, col: Color, genitore: Node) -> void:
+	var r: HBoxContainer = HBoxContainer.new()
+	r.add_theme_constant_override("separation", 10)
+	genitore.add_child(r)
+	var l: Label = Label.new()
+	l.text = nome
+	l.custom_minimum_size = Vector2(120, 0)
+	l.add_theme_font_size_override("font_size", 16)
+	r.add_child(l)
+	var pb: ProgressBar = ProgressBar.new()
+	pb.max_value = 100
+	pb.value = v
+	pb.show_percentage = false
+	pb.custom_minimum_size = Vector2(0, 16)
+	pb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	pb.add_theme_stylebox_override("background", stile(Color(0, 0, 0, 0.35), Color(1, 1, 1, 0.06), 8, 1, 0))
+	pb.add_theme_stylebox_override("fill", stile(col, col.lightened(0.35), 8, 1, 0))
+	r.add_child(pb)
+	var n: Label = Label.new()
+	n.text = str(v)
+	n.custom_minimum_size = Vector2(34, 0)
+	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	n.add_theme_font_size_override("font_size", 16)
+	n.add_theme_color_override("font_color", GRIGIO)
+	r.add_child(n)
+
+
+func riga_stat(c: Node, voci: Array) -> void:
+	var r: HBoxContainer = HBoxContainer.new()
+	c.add_child(r)
+	for kv in voci:
+		var v: VBoxContainer = VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		r.add_child(v)
+		lab(str(kv[0]), 32, TESTO, v, false)
+		lab(str(kv[1]), 14, GRIGIO, v, false)
+
+
+func menu_scelta(titolo_m: String, voci: Array, corrente: int, azione: Callable, genitore: Node) -> void:
+	lab(titolo_m, 16, GRIGIO, genitore)
+	var o: OptionButton = OptionButton.new()
+	for v in voci:
+		o.add_item(str(v))
+	o.select(corrente)
+	o.item_selected.connect(azione)
+	o.custom_minimum_size = Vector2(0, 44)
+	genitore.add_child(o)
+
+
+func centrato(c: Control, genitore: Node = null) -> void:
+	var g: Node = box
+	if genitore != null:
+		g = genitore
+	var h: HBoxContainer = HBoxContainer.new()
+	g.add_child(h)
+	var a: Control = Control.new()
+	a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(a)
+	h.add_child(c)
+	var b: Control = Control.new()
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(b)
+
+
+func colonna_centrale(larg: int) -> VBoxContainer:
+	var h: HBoxContainer = HBoxContainer.new()
+	h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(h)
+	var a: Control = Control.new()
+	a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(a)
+	var v: VBoxContainer = VBoxContainer.new()
+	v.custom_minimum_size = Vector2(larg, 0)
+	v.add_theme_constant_override("separation", 12)
+	h.add_child(v)
+	var b: Control = Control.new()
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(b)
+	return v
+
+
+func spazio(h: int) -> void:
+	var s: Control = Control.new()
+	s.custom_minimum_size = Vector2(0, h)
+	box.add_child(s)
+
+
+func cella(testo: String, col: Color) -> Label:
+	var l: Label = Label.new()
+	l.text = testo
+	l.add_theme_font_size_override("font_size", 16)
+	l.add_theme_color_override("font_color", col)
+	return l
+
+
+func crest(nome: String, w: int = 40, h: int = 46) -> StemmaView:
+	var s: StemmaView = StemmaView.new()
+	s.custom_minimum_size = Vector2(w, h)
+	s.imposta(nome, kit_di(nome))
+	return s
+
+
+func maglia(nome: String, dim: int = 64) -> MagliaView:
+	var m: MagliaView = MagliaView.new()
+	m.custom_minimum_size = Vector2(dim, dim)
+	m.kit = kit_di(nome)
+	return m
+
+
+func passo(n: int, testo: String, genitore: Node) -> void:
+	var h: HBoxContainer = HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	genitore.add_child(h)
+	var bd: PanelContainer = PanelContainer.new()
+	bd.add_theme_stylebox_override("panel", stile(VERDE, VERDE.darkened(0.35), 20, 2, 0))
+	bd.custom_minimum_size = Vector2(40, 40)
+	bd.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	h.add_child(bd)
+	var l: Label = Label.new()
+	l.text = str(n)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", 20)
+	l.add_theme_font_override("font", _fb)
+	l.add_theme_color_override("font_color", SCURO)
+	bd.add_child(l)
+	lab(testo, 19, TESTO, h)
+
+
+func _nav(dest: String) -> void:
+	if dest == "gioco":
+		gioco()
+	elif dest == "class":
+		classifica_screen()
+	elif dest == "mondo":
+		mondo_screen()
+	elif dest == "bach":
+		bacheca()
+	elif dest == "stat":
+		statistiche()
+	elif dest == "menu":
+		menu_principale()
+
+
+func barra_nav(attiva: String) -> void:
+	var c: Card = Card.new()
+	c.accent = Color("3a8f66")
+	c.set_m(6)
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(c)
+	var r: HBoxContainer = HBoxContainer.new()
+	r.add_theme_constant_override("separation", 4)
+	c.add_child(r)
+	var voci: Array = [["gioco", "Carriera"], ["class", "Classifica"], ["mondo", "Mondo"], ["bach", "Bacheca"], ["stat", "Statistiche"], ["menu", "Menu"]]
+	for v in voci:
+		var b: Button = bott_nav(str(v[1]), _nav.bind(str(v[0])), r, str(v[0]) == attiva)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
+# ================= FUNZIONI DI SUPPORTO =================
+func R(a: int, b: int) -> int:
+	return randi_range(a, b)
+
+
+func pick(arr: Array) -> Variant:
+	return arr[randi() % arr.size()]
+
+
+func cl(v: float, a: int = 1, b: int = 99) -> int:
+	return int(clampf(roundf(v), float(a), float(b)))
+
+
+func ovr_calc(a: Dictionary, ruolo: String) -> int:
+	var t: float = 0.0
+	var p: Dictionary = PESI[ruolo]
+	for k in p:
+		t += float(a[k]) * float(p[k])
+	return cl(t)
+
+
+func ovr() -> int:
+	return ovr_calc(G.a, str(G.ruolo))
+
+
+func eur(k: int) -> String:
+	if k >= 1000:
+		return "€ %.1f milioni l'anno" % (float(k) / 1000.0)
+	return "€ %d mila l'anno" % k
+
+
+func promessa_ov(l: int, o: int) -> String:
+	var x: float = 0.58 + float(o - l) / 20.0
+	if x >= 0.78:
+		return "Titolare"
+	if x >= 0.43:
+		return "Alternanza"
+	return "Riserva"
+
+
+func promessa_per(l: int) -> String:
+	return promessa_ov(l, ovr())
+
+
+func stip_calc(livello: int, pr: String, o: int, rep: int) -> int:
+	var tab: Dictionary = {"Titolare": 1.08, "Alternanza": 1.0, "Riserva": 0.85}
+	var f: float = tab[pr]
+	var v: float = 25.0 * exp(float(o - 40) / 8.5) * (1.0 + float(rep) / 200.0) * (float(livello) / 70.0) * f * randf_range(0.92, 1.12)
+	return int(v)
+
+
+func stipendio_per(livello: int, pr: String) -> int:
+	return stip_calc(livello, pr, ovr(), int(G.rep))
+
+
+func correggi() -> void:
+	for k in ["energia", "forma", "morale", "mister", "rep"]:
+		G[k] = clampi(int(G[k]), 0, 100)
+
+
+func log_add(s: String) -> void:
+	G.reg.push_front(s)
+	if G.reg.size() > 12:
+		G.reg.resize(12)
+
+
+func cognome() -> String:
+	var parti: PackedStringArray = String(G.nome).split(" ")
+	return parti[parti.size() - 1]
+
+
+func kit_neutro() -> Array:
+	return [Color("2d6cdf"), Color("ffffff"), Color("2d6cdf"), Color("ffffff"), 0]
+
+
+func kit_di(nome: String) -> Array:
+	var base: String = nome.replace(" U19", "")
+	var h: int = absi(hash(base))
+	var n: int = COLORI_KIT.size()
+	var c1: Color = COLORI_KIT[h % n]
+	var c2: Color = COLORI_KIT[(h >> 4) % n]
+	if c2 == c1:
+		c2 = Color("f4f6f7")
+	var pat: int = (h >> 9) % 5
+	var calz: Color = Color("ffffff")
+	if c1.get_luminance() > 0.7:
+		calz = c2
+	return [c1, calz, c1, c2, pat]
+
+
+func av_default() -> Dictionary:
+	return {"pelle": 1, "capelli": 1, "col_cap": 1, "barba": 0, "occhi": 0, "scarpini": 0, "corp": 1, "acc": 0, "acc2": 0, "gioiello": 0, "tatt": 0}
+
+
+func forma_trofeo(nome: String) -> String:
+	if nome.begins_with("Sfera") or nome.begins_with("Miglior"):
+		return "sfera"
+	if nome.begins_with("Scarpa"):
+		return "scarpa"
+	if nome.begins_with("Guanto"):
+		return "guanto"
+	return "coppa"
+
+
+func ruolo_scelto() -> String:
+	var r: String = "Attaccante"
+	for p in POS:
+		if p[0] == S.pos:
+			r = p[4]
+	return r
+
+
+func genera_att() -> Dictionary:
+	var c: Dictionary = PARTENZE[S.partenza]
+	var a: Dictionary = {}
+	for k in ATTR:
+		var v: int = int(c.base) + R(-4, 5)
+		if S.partenza == "veterano":
+			if k == "fis" or k == "vel":
+				v -= 6
+			else:
+				v += 5
+		a[k] = cl(float(v))
+	return a
+
+
+# ================= MONDO: PAESI, DIVISIONI E CLUB =================
+func nome_lega(pid: String, pnome: String, t: int) -> String:
+	var key: String = "%s%d" % [pid, t]
+	if NOMI_LEGHE.has(key):
+		return str(NOMI_LEGHE[key])
+	if t == 0:
+		return "%s - Campionato Giovanile" % pnome
+	var base: Array = ["Prima Divisione", "Seconda Divisione", "Terza Divisione", "Quarta Divisione"]
+	return "%s - %s" % [pnome, base[t - 1]]
+
+
+func nome_club(st: Dictionary, usati: Dictionary) -> String:
+	var ps: Array = st.p
+	var ss: Array = st.s
+	var ms: Array = st.m
+	var sep: String = str(st.sep)
+	for k in 40:
+		var citta: String = str(pick(ps)) + sep + str(pick(ss))
+		var nome: String = str(pick(ms)).replace("{c}", citta)
+		if not usati.has(nome):
+			usati[nome] = true
+			return nome
+	var base: String = str(pick(ms)).replace("{c}", str(pick(ps)) + sep + str(pick(ss)))
+	var n: int = 2
+	while usati.has("%s %d" % [base, n]):
+		n += 1
+	var fin: String = "%s %d" % [base, n]
+	usati[fin] = true
+	return fin
+
+
+func genera_mondo() -> Dictionary:
+	var lege: Dictionary = {}
+	var club: Dictionary = {}
+	var usati: Dictionary = {}
+	for p in PAESI:
+		var st: Dictionary = STILI[p.stile]
+		var divs: Array = p.div
+		var top_nomi: Array = []
+		for t in divs.size():
+			var n: int = int(divs[t])
+			var base: float = float(p.forza) - 9.0 * float(t)
+			var key: String = "%s%d" % [p.id, t + 1]
+			var nomi: Array = []
+			for i in n:
+				var nome: String = nome_club(st, usati)
+				var f: float = float(i) / float(maxi(1, n - 1))
+				var l: int = cl(base + 7.0 - 14.0 * f + randf_range(-2.0, 2.0), 30, 95)
+				club[nome] = {"lg": key, "l": l}
+				nomi.append(nome)
+			lege[key] = {"nome": nome_lega(str(p.id), str(p.nome), t + 1), "paese": p.id, "t": t + 1, "cl": nomi, "base": int(base), "ric": p.ric}
+			if t == 0:
+				top_nomi = nomi
+		var keyg: String = "%s0" % p.id
+		var gn: Array = []
+		for nm in top_nomi:
+			var gnome: String = "%s U19" % nm
+			club[gnome] = {"lg": keyg, "l": maxi(30, int(club[nm].l) - 24), "m": nm}
+			gn.append(gnome)
+		lege[keyg] = {"nome": nome_lega(str(p.id), str(p.nome), 0), "paese": p.id, "t": 0, "cl": gn, "base": int(p.forza) - 24, "ric": p.ric}
+	return {"lege": lege, "club": club}
+
+
+func liv(nome: String) -> int:
+	if G.has("club") and G.club.has(nome):
+		return int(G.club[nome].l)
+	return 60
+
+
+func info_club(nome: String) -> String:
+	return str(G.lege[G.club[nome].lg].nome)
+
+
+func ric_club(nome: String) -> float:
+	return float(G.lege[G.club[nome].lg].ric)
+
+
+func tier_club(nome: String) -> int:
+	return int(G.lege[G.club[nome].lg].t)
+
+
+func n_tiers(pid: String) -> int:
+	for p in PAESI:
+		if p.id == pid:
+			return int(p.div.size())
+	return 1
+
+
+func n_sposta(n: int) -> int:
+	if n >= 16:
+		return 3
+	return 2
+
+
+func nomi_lega() -> Array:
+	return G.lege[G.lega].cl
+
+
+func nome_lega_corr() -> String:
+	return str(G.lege[G.lega].nome)
+
+
+func giov_lega() -> bool:
+	return int(G.lege[G.lega].t) == 0
+
+
+func tier_txt(t: int) -> String:
+	if t == 0:
+		return "Giov."
+	return str(t)
+
+
+func obiettivo_lega(nome: String) -> String:
+	var l: Dictionary = G.lege[G.club[nome].lg]
+	var t: int = int(l.t)
+	if t == 0:
+		return "far crescere i giovani"
+	var mio: int = int(G.club[nome].l)
+	var rank: int = 0
+	for x in l.cl:
+		if int(G.club[x].l) > mio:
+			rank += 1
+	var n: int = l.cl.size()
+	if rank < 2:
+		return "vincere il campionato"
+	if rank < 5:
+		if t >= 2:
+			return "promozione"
+		return "zona europea"
+	if rank >= n - 4:
+		return "salvezza"
+	return "metà classifica"
+
+
+# ================= CALENDARIO E CLASSIFICA =================
+func ngiorn() -> int:
+	if G.has("cal") and G.cal.size() > 0:
+		return G.cal.size()
+	return 38
+
+
+func tab_vuota(nomi: Array) -> Dictionary:
+	var d: Dictionary = {}
+	for s in nomi:
+		d[s] = {"pt": 0, "pg": 0, "v": 0, "d": 0, "p": 0, "gf": 0, "gs": 0}
+	return d
+
+
+func genera_calendario(nomi: Array) -> Array:
+	var sq: Array = nomi.duplicate()
+	sq.shuffle()
+	var n: int = sq.size()
+	var meta: int = int(float(n) / 2.0)
+	var fisso: String = str(sq[0])
+	var rot: Array = sq.slice(1)
+	var giri: Array = []
+	for r in n - 1:
+		var lista: Array = [fisso]
+		lista.append_array(rot)
+		var coppie: Array = []
+		for i in meta:
+			var a: String = str(lista[i])
+			var b: String = str(lista[n - 1 - i])
+			if (r + i) % 2 == 0:
+				coppie.append([a, b])
+			else:
+				coppie.append([b, a])
+		giri.append(coppie)
+		var ultimo: Variant = rot.pop_back()
+		rot.push_front(ultimo)
+	var ritorno: Array = []
+	for g in giri:
+		var inv: Array = []
+		for c in g:
+			inv.append([c[1], c[0]])
+		ritorno.append(inv)
+	giri.append_array(ritorno)
+	return giri
+
+
+func nuova_stagione_lega() -> void:
+	var nomi: Array = nomi_lega()
+	G.cal = genera_calendario(nomi)
+	G.tab = tab_vuota(nomi)
+	G.ris = {}
+
+
+func risultato_sim(la: int, lb: int) -> Array:
+	var tp: float = 1.0 / (1.0 + exp(-float(la - lb) / 9.0))
+	var r: float = randf()
+	var pw: float = tp * 0.8
+	var gc: int = 0
+	var gt: int = 0
+	if r < pw:
+		gc = R(1, 4)
+		gt = R(0, gc - 1)
+	elif r < pw + 0.22:
+		gc = R(0, 2)
+		gt = gc
+	else:
+		gt = R(1, 3)
+		gc = R(0, gt - 1)
+	return [gc, gt]
+
+
+func registra(casa: String, trasf: String, gc: int, gt: int) -> void:
+	var a: Dictionary = G.tab[casa]
+	var b: Dictionary = G.tab[trasf]
+	a.pg += 1
+	b.pg += 1
+	a.gf += gc
+	a.gs += gt
+	b.gf += gt
+	b.gs += gc
+	if gc > gt:
+		a.v += 1
+		a.pt += 3
+		b.p += 1
+	elif gc < gt:
+		b.v += 1
+		b.pt += 3
+		a.p += 1
+	else:
+		a.d += 1
+		b.d += 1
+		a.pt += 1
+		b.pt += 1
+
+
+func registra_nostra(giro: int, casa: bool, opn: String, gf: int, ga: int) -> void:
+	if casa:
+		registra(str(G.sq.n), opn, gf, ga)
+	else:
+		registra(opn, str(G.sq.n), ga, gf)
+	G.ris[giro] = {"opn": opn, "casa": casa, "gf": gf, "ga": ga}
+
+
+func sim_altre(giro: int) -> void:
+	var partite: Array = G.cal[giro]
+	for c in partite:
+		if c[0] == G.sq.n or c[1] == G.sq.n:
+			continue
+		var r: Array = risultato_sim(liv(str(c[0])) + 3, liv(str(c[1])))
+		registra(str(c[0]), str(c[1]), int(r[0]), int(r[1]))
+
+
+func partita_nostra() -> Dictionary:
+	var giro: Array = G.cal[int(G.sett) - 1]
+	for c in giro:
+		if c[0] == G.sq.n:
+			return {"opn": str(c[1]), "casa": true}
+		if c[1] == G.sq.n:
+			return {"opn": str(c[0]), "casa": false}
+	return {"opn": str(nomi_lega()[0]), "casa": true}
+
+
+func _ord_tab(a: Dictionary, b: Dictionary) -> bool:
+	if int(a.pt) != int(b.pt):
+		return int(a.pt) > int(b.pt)
+	var da: int = int(a.gf) - int(a.gs)
+	var db: int = int(b.gf) - int(b.gs)
+	if da != db:
+		return da > db
+	if int(a.gf) != int(b.gf):
+		return int(a.gf) > int(b.gf)
+	return str(a.sq) < str(b.sq)
+
+
+func classifica() -> Array:
+	var righe: Array = []
+	for nome in G.tab:
+		var e: Dictionary = G.tab[nome]
+		righe.append({"sq": nome, "pt": e.pt, "pg": e.pg, "v": e.v, "d": e.d, "p": e.p, "gf": e.gf, "gs": e.gs})
+	righe.sort_custom(_ord_tab)
+	return righe
+
+
+func pos_nostra(righe: Array) -> int:
+	for i in righe.size():
+		if righe[i].sq == G.sq.n:
+			return i + 1
+	return 1
+
+
+func zone_colori(n: int) -> Array:
+	var cols: Array = []
+	for i in n:
+		cols.append(Color(0, 0, 0, 0))
+	var lg: Dictionary = G.lege[G.lega]
+	var t: int = int(lg.t)
+	var nt: int = n_tiers(str(lg.paese))
+	var m: int = n_sposta(n)
+	cols[0] = ORO
+	if t == 1:
+		for i in range(1, mini(4, n)):
+			cols[i] = VERDE
+		if nt > 1:
+			for i in range(n - m, n):
+				cols[i] = ROSSO
+	elif t >= 2:
+		for i in range(1, m):
+			cols[i] = VERDE
+		if t < nt:
+			for i in range(n - m, n):
+				cols[i] = ROSSO
+	return cols
+
+
+func legenda_testi() -> Array:
+	var lg: Dictionary = G.lege[G.lega]
+	var t: int = int(lg.t)
+	var nt: int = n_tiers(str(lg.paese))
+	var r: Array = [[ORO, "Campione"]]
+	if t == 1:
+		r.append([VERDE, "Coppe europee"])
+		if nt > 1:
+			r.append([ROSSO, "Retrocessione"])
+	elif t >= 2:
+		r.append([VERDE, "Promozione"])
+		if t < nt:
+			r.append([ROSSO, "Retrocessione"])
+	return r
+
+
+func legenda_ui(genitore: Node) -> void:
+	var lg: HBoxContainer = HBoxContainer.new()
+	lg.add_theme_constant_override("separation", 18)
+	genitore.add_child(lg)
+	for x in legenda_testi():
+		var cr: ColorRect = ColorRect.new()
+		cr.color = x[0]
+		cr.custom_minimum_size = Vector2(14, 14)
+		cr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		lg.add_child(cr)
+		lab(str(x[1]), 14, GRIGIO, lg, false)
+
+
+func riga_class(genitore: Node, v: Array, idx: int, header: bool, nostra: bool, zona: Color, nome: String) -> void:
+	var p: PanelContainer = PanelContainer.new()
+	var bg: Color = Color(0, 0, 0, 0)
+	var bd: Color = Color(0, 0, 0, 0)
+	var sp: int = 0
+	if nostra:
+		bg = Color(0.94, 0.76, 0.23, 0.13)
+		bd = ORO
+		sp = 2
+	elif not header and idx % 2 == 0:
+		bg = Color(1, 1, 1, 0.035)
+	p.add_theme_stylebox_override("panel", stile(bg, bd, 8, sp, 3))
+	genitore.add_child(p)
+	var h: HBoxContainer = HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	p.add_child(h)
+	var cz: ColorRect = ColorRect.new()
+	if header:
+		cz.color = Color(0, 0, 0, 0)
+	else:
+		cz.color = zona
+	cz.custom_minimum_size = Vector2(5, 0)
+	h.add_child(cz)
+	var colt: Color = TESTO
+	if header:
+		colt = GRIGIO
+	elif nostra:
+		colt = ORO
+	for i in v.size():
+		var l: Label = Label.new()
+		l.text = str(v[i])
+		l.add_theme_font_size_override("font_size", 16)
+		l.add_theme_color_override("font_color", colt)
+		if nostra and i == 1:
+			l.add_theme_font_override("font", _fb)
+		if i == 1:
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			l.clip_text = true
+			if nome != "":
+				var mg: MagliaView = MagliaView.new()
+				mg.custom_minimum_size = Vector2(26, 26)
+				mg.kit = kit_di(nome)
+				h.add_child(mg)
+			elif not header:
+				pass
+		elif i == 0:
+			l.custom_minimum_size = Vector2(34, 0)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		elif i == v.size() - 1:
+			l.custom_minimum_size = Vector2(52, 0)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			if not header:
+				l.add_theme_font_override("font", _fb)
+		else:
+			l.custom_minimum_size = Vector2(44, 0)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		h.add_child(l)
+
+
+func classifica_ui(genitore: Node, compatta: bool) -> void:
+	var righe: Array = classifica()
+	var nos: int = pos_nostra(righe) - 1
+	var zone: Array = zone_colori(righe.size())
+	var da: int = 0
+	var a: int = righe.size() - 1
+	if compatta:
+		da = maxi(0, nos - 3)
+		a = mini(righe.size() - 1, nos + 3)
+	riga_class(genitore, ["#", "Squadra", "G", "V", "N", "P", "DR", "Pt"], -1, true, false, Color(0, 0, 0, 0), "")
+	for i in range(da, a + 1):
+		var e: Dictionary = righe[i]
+		var dr: int = int(e.gf) - int(e.gs)
+		riga_class(genitore, [str(i + 1), str(e.sq), str(e.pg), str(e.v), str(e.d), str(e.p), "%+d" % dr, str(e.pt)], i, false, i == nos, zone[i], str(e.sq))
+
+
+# ================= OBIETTIVO STAGIONALE =================
+func nuovo_obiettivo() -> void:
+	var tipi: Array = ["pres", "voto"]
+	if G.ruolo != "Portiere":
+		tipi.append("ga")
+	var tp: String = str(pick(tipi))
+	var d: float = float(ovr() - int(G.sq.l))
+	var ob: Dictionary = {}
+	if tp == "pres":
+		var n: int = clampi(int(roundf(21.0 + d * 0.55)), 10, 31)
+		ob = {"tipo": "pres", "val": n, "txt": "Gioca almeno %d partite da titolare." % n}
+	elif tp == "voto":
+		var v: float = snappedf(clampf(6.45 + d / 55.0, 6.05, 7.1), 0.1)
+		ob = {"tipo": "voto", "val": v, "txt": "Chiudi la stagione con un voto medio di almeno %.1f." % v}
+	else:
+		var base: float = 38.0 * (float(KG[G.ruolo]) + float(KA[G.ruolo])) * (float(ovr()) / 70.0) * 0.47
+		var n2: int = maxi(2, int(roundf(base + d * 0.135)))
+		ob = {"tipo": "ga", "val": n2, "txt": "Contribuisci a %d gol (gol più assist)." % n2}
+	G.obj = ob
+
+
+func progresso_obj() -> Array:
+	var ob: Dictionary = G.obj
+	var t: Dictionary = G.st
+	var tp: String = str(ob.tipo)
+	if tp == "pres":
+		return ["%d / %d" % [t.pres, ob.val], clampi(int(100.0 * float(t.pres) / float(ob.val)), 0, 100)]
+	if tp == "voto":
+		var av: float = 0.0
+		if int(t.pres) > 0:
+			av = float(t.voto) / float(t.pres)
+		return ["%.1f / %.1f" % [av, float(ob.val)], clampi(int(100.0 * av / float(ob.val)), 0, 100)]
+	var ga: int = int(t.gol) + int(t.ass)
+	return ["%d / %d" % [ga, ob.val], clampi(int(100.0 * float(ga) / float(ob.val)), 0, 100)]
+
+
+# ================= SALVATAGGIO =================
+func salva() -> void:
+	if G.is_empty() or not G.has("lege"):
+		return
+	var f: FileAccess = FileAccess.open(FILE_SALVA, FileAccess.WRITE)
+	if f == null:
+		return
+	var copia: Dictionary = G.duplicate(true)
+	copia["pm"] = null
+	f.store_string(var_to_str(copia))
+	f.close()
+
+
+func anteprima_salvataggio() -> Dictionary:
+	if not FileAccess.file_exists(FILE_SALVA):
+		return {}
+	var f: FileAccess = FileAccess.open(FILE_SALVA, FileAccess.READ)
+	if f == null:
+		return {}
+	var txt: String = f.get_as_text()
+	f.close()
+	var d: Variant = str_to_var(txt)
+	if typeof(d) != TYPE_DICTIONARY:
+		return {}
+	var dd: Dictionary = d
+	for k in ["nome", "sq", "a", "ruolo", "lege", "club", "lega", "cal", "tab"]:
+		if not dd.has(k):
+			return {}
+	return dd
+
+
+func carica() -> bool:
+	var dd: Dictionary = anteprima_salvataggio()
+	if dd.size() == 0:
+		return false
+	for k in ["st", "car", "alle", "reg", "compagni", "trofei", "pos"]:
+		if not dd.has(k):
+			return false
+	if not dd.has("storico"):
+		dd["storico"] = []
+	if not dd.has("madre"):
+		dd["madre"] = ""
+	if not dd.has("albo"):
+		dd["albo"] = {}
+	if not dd.has("ris"):
+		dd["ris"] = {}
+	dd["pm"] = null
+	G = dd
+	var dav: Dictionary = av_default()
+	if not G.has("av"):
+		G["av"] = dav
+	for k in dav:
+		if not G.av.has(k):
+			G.av[k] = dav[k]
+	if not G.has("obj") or G.obj.size() == 0:
+		nuovo_obiettivo()
+	return true
+
+
+func cancella_salvataggio() -> void:
+	if FileAccess.file_exists(FILE_SALVA):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(FILE_SALVA))
+
+
+# ================= TITOLO E ISTRUZIONI =================
+func titolo() -> void:
+	svuota()
+	var hero: HeroView = HeroView.new()
+	hero.titolo_h = TITOLO
+	hero.sotto_h = SOTTOTITOLO
+	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(hero)
+	var sv: Dictionary = anteprima_salvataggio()
+	var riga: HBoxContainer = HBoxContainer.new()
+	riga.add_theme_constant_override("separation", 26)
+	box.add_child(riga)
+	var sa: Control = Control.new()
+	sa.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	riga.add_child(sa)
+	if sv.size() > 0:
+		var carta: CartaGiocatore = CartaGiocatore.new()
+		carta.imposta(sv.get("av", av_default()), kit_di(str(sv.sq.n)), str(sv.nome), str(sv.get("pos", "")), str(sv.sq.n), int(sv.get("num", 9)), ovr_calc(sv.a, str(sv.ruolo)), sv.a)
+		riga.add_child(carta)
+	var col: VBoxContainer = VBoxContainer.new()
+	col.custom_minimum_size = Vector2(480, 0)
+	col.add_theme_constant_override("separation", 12)
+	riga.add_child(col)
+	var sb: Control = Control.new()
+	sb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	riga.add_child(sb)
+	if sv.size() > 0:
+		tile_menu("Continua la carriera", "%s  -  stagione %d" % [sv.sq.n, sv.get("stagione", 1)], _continua_salvata, col, true)
+	tile_menu("Nuova carriera", "Crea un giocatore e scala il calcio mondiale", crea, col, sv.size() == 0)
+	tile_menu("Come si gioca", "La guida rapida in 9 passi", come_si_gioca, col, false)
+	var atxt: String = "No"
+	if audio_on:
+		atxt = "Sì"
+	bott("Audio: " + atxt, _toggle_audio, col)
+	spazio(6)
+	centra(lab("Un gioco di %s   -   versione %s" % [AUTORE, VERSIONE], 15, GRIGIO, null, false))
+
+
+func _continua_salvata() -> void:
+	if carica():
+		gioco()
+	else:
+		titolo()
+
+
+func menu_principale() -> void:
+	salva()
+	titolo()
+
+
+func come_si_gioca() -> void:
+	svuota()
+	banner("Come si gioca", "La guida rapida in 9 passi")
+	var c: VBoxContainer = scheda(BORDO)
+	c.add_theme_constant_override("separation", 14)
+	passo(1, "Crea il tuo giocatore: paese, posizione sul campo, numero di maglia e punto di partenza.", c)
+	passo(2, "Se parti a 17 anni inizi nel settore giovanile di un club e giochi nel campionato giovanile.", c)
+	passo(3, "Personalizza il suo aspetto: ogni opzione ha un'anteprima.", c)
+	passo(4, "Tre club ti contattano: scegli guardando divisione, stipendio, durata e ruolo promesso.", c)
+	passo(5, "Ogni settimana scegli come allenarti, poi si gioca la partita in diretta. Con un'occasione da gol, tocca il cerchio verde dentro la porta.", c)
+	passo(6, "Ogni paese ha più divisioni: le prime squadre salgono e le ultime scendono ogni stagione.", c)
+	passo(7, "A fine stagione arrivano premi, trofei e proposte: rinnovo, trasferimenti in altri paesi, prestiti in categorie inferiori, ritorno al club che ti possiede.", c)
+	passo(8, "Obiettivo: partire dal basso e arrivare ai club più forti del mondo.", c)
+	passo(9, "Se non vuoi giocare tutte le partite, usa «Salta stagione» dalla schermata principale.", c)
+	bott("Indietro", titolo, null, true)
+
+
+# ================= CREAZIONE GIOCATORE =================
+func _scelta_pos(n: String) -> void:
+	S.pos = n
+	lbl_pos.text = "Hai scelto: " + n
+
+
+func _set_nome(t: String) -> void:
+	S.nome = t
+
+
+func _set_num(v: float) -> void:
+	S.num = int(v)
+
+
+func _set_partenza(i: int) -> void:
+	S.partenza = CHIAVI_PARTENZA[i]
+
+
+func _set_drama(i: int) -> void:
+	S.drama = i
+
+
+func _set_diff(i: int) -> void:
+	S.diff = i
+
+
+func _set_paese(i: int) -> void:
+	if i == 0:
+		S.paese = ""
+	else:
+		S.paese = str(PAESI[i - 1].id)
+
+
+func crea() -> void:
+	svuota()
+	banner("Crea il tuo giocatore", "Passo 1 di 3: dati e punto di partenza")
+	var riga: HBoxContainer = HBoxContainer.new()
+	riga.add_theme_constant_override("separation", 16)
+	box.add_child(riga)
+	var sx: VBoxContainer = scheda(BORDO, riga)
+	intest("Posizione in campo", sx)
+	var campo: CampoView = CampoView.new()
+	campo.punti = POS
+	campo.selezione = S.pos
+	sx.add_child(campo)
+	lbl_pos = lab("Hai scelto: " + str(S.pos), 17, ORO, sx)
+	campo.scelta.connect(_scelta_pos)
+	var dx: VBoxContainer = scheda(BORDO, riga)
+	intest("Giocatore", dx)
+	var nome: LineEdit = LineEdit.new()
+	nome.placeholder_text = "Nome (facoltativo)"
+	nome.text = str(S.nome)
+	nome.custom_minimum_size = Vector2(0, 44)
+	nome.text_changed.connect(_set_nome)
+	dx.add_child(nome)
+	lab("Numero di maglia", 16, GRIGIO, dx)
+	var num: SpinBox = SpinBox.new()
+	num.min_value = 1
+	num.max_value = 99
+	num.value = S.num
+	num.value_changed.connect(_set_num)
+	dx.add_child(num)
+	var voci: Array = []
+	for k in CHIAVI_PARTENZA:
+		voci.append(PARTENZE[k].nome)
+	menu_scelta("Punto di partenza", voci, CHIAVI_PARTENZA.find(S.partenza), _set_partenza, dx)
+	var vp: Array = ["Casuale"]
+	var curp: int = 0
+	for i in PAESI.size():
+		vp.append(str(PAESI[i].nome))
+		if str(PAESI[i].id) == str(S.paese):
+			curp = i + 1
+	menu_scelta("Paese di partenza", vp, curp, _set_paese, dx)
+	menu_scelta("Drammi e imprevisti", ["Nessuno", "Moderato", "Intenso"], S.drama, _set_drama, dx)
+	menu_scelta("Difficoltà", ["Facile", "Normale", "Difficile"], S.diff, _set_diff, dx)
+	var rb: HBoxContainer = HBoxContainer.new()
+	rb.add_theme_constant_override("separation", 12)
+	box.add_child(rb)
+	bott("Indietro", titolo, rb)
+	var bi: Button = bott("Avanti: personalizza il giocatore", personalizza, rb, true)
+	bi.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
+# ================= PERSONALIZZAZIONE DEL GIOCATORE =================
+func aggiorna_preview() -> void:
+	if is_instance_valid(preview):
+		preview.av = S.av
+		preview.queue_redraw()
+
+
+func aggiorna_swatch(chiave: String) -> void:
+	var lista: Array = swatch_ref[chiave]
+	var colori: Array = swatch_col[chiave]
+	for i in lista.size():
+		var b: Button = lista[i]
+		var sel: bool = int(S.av[chiave]) == i
+		var col: Color = colori[i]
+		var bordo: Color = Color(1, 1, 1, 0.25)
+		var sp: int = 2
+		if sel:
+			bordo = ORO
+			sp = 4
+		var sbx: StyleBoxFlat = stile(col, bordo, 22, sp, 0, true)
+		b.add_theme_stylebox_override("normal", sbx)
+		b.add_theme_stylebox_override("hover", sbx)
+		b.add_theme_stylebox_override("pressed", sbx)
+		b.add_theme_stylebox_override("focus", stile(Color(0, 0, 0, 0), ORO, 22, 4, 0))
+
+
+func aggiorna_thumbs() -> void:
+	for chiave in grid_ref:
+		var lista: Array = grid_ref[chiave]
+		for i in lista.size():
+			var b: Button = lista[i][0]
+			var th: AvatarView = lista[i][1]
+			var a: Dictionary = S.av.duplicate(true)
+			a[chiave] = i
+			th.av = a
+			th.queue_redraw()
+			var sel: bool = int(S.av[chiave]) == i
+			var bordo: Color = Color(1, 1, 1, 0.12)
+			var sp: int = 1
+			var fondo: Color = Color("0c1f17")
+			if sel:
+				bordo = ORO
+				sp = 3
+				fondo = Color("1d4a36")
+			var sbx: StyleBoxFlat = stile(fondo, bordo, 12, sp, 0, true)
+			b.add_theme_stylebox_override("normal", sbx)
+			b.add_theme_stylebox_override("hover", sbx)
+			b.add_theme_stylebox_override("pressed", sbx)
+			b.add_theme_stylebox_override("focus", stile(Color(0, 0, 0, 0), ORO, 12, 3, 0))
+
+
+func _set_av(chiave: String, i: int) -> void:
+	S.av[chiave] = i
+	if swatch_ref.has(chiave):
+		aggiorna_swatch(chiave)
+	aggiorna_thumbs()
+	aggiorna_preview()
+	_ui_click()
+
+
+func swatch_riga(titolo_s: String, chiave: String, colori: Array, genitore: Node) -> void:
+	lab(titolo_s, 16, GRIGIO, genitore)
+	var r: HFlowContainer = HFlowContainer.new()
+	r.add_theme_constant_override("h_separation", 10)
+	r.add_theme_constant_override("v_separation", 10)
+	genitore.add_child(r)
+	var lista: Array = []
+	for i in colori.size():
+		var b: Button = Button.new()
+		b.custom_minimum_size = Vector2(44, 44)
+		b.pressed.connect(_set_av.bind(chiave, i))
+		r.add_child(b)
+		lista.append(b)
+	swatch_ref[chiave] = lista
+	swatch_col[chiave] = colori
+	aggiorna_swatch(chiave)
+
+
+func griglia(titolo_s: String, chiave: String, nomi: Array, genitore: Node, vista: String) -> void:
+	lab(titolo_s, 16, GRIGIO, genitore)
+	var fl: HFlowContainer = HFlowContainer.new()
+	fl.add_theme_constant_override("h_separation", 10)
+	fl.add_theme_constant_override("v_separation", 10)
+	genitore.add_child(fl)
+	var lista: Array = []
+	for i in nomi.size():
+		var cv: VBoxContainer = VBoxContainer.new()
+		cv.add_theme_constant_override("separation", 2)
+		fl.add_child(cv)
+		var b: Button = Button.new()
+		b.custom_minimum_size = Vector2(96, 108)
+		b.pressed.connect(_set_av.bind(chiave, i))
+		cv.add_child(b)
+		var th: AvatarView = AvatarView.new()
+		th.vista = vista
+		th.custom_minimum_size = Vector2.ZERO
+		b.add_child(th)
+		th.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 6)
+		th.imposta(S.av, kit_neutro(), str(S.num))
+		var nl: Label = Label.new()
+		nl.text = str(nomi[i])
+		nl.custom_minimum_size = Vector2(96, 0)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		nl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nl.add_theme_font_size_override("font_size", 13)
+		nl.add_theme_color_override("font_color", GRIGIO)
+		cv.add_child(nl)
+		lista.append([b, th])
+	grid_ref[chiave] = lista
+
+
+func _tab(i: int) -> void:
+	tab_prev = i
+	for k in tab_sez.size():
+		var s: Control = tab_sez[k]
+		s.visible = (k == i)
+	for k in tab_btns.size():
+		var b: Button = tab_btns[k]
+		if k == i:
+			b.add_theme_stylebox_override("normal", stile_btn(VERDE, VERDE.darkened(0.45)))
+			b.add_theme_stylebox_override("hover", stile_btn(VERDE, ORO.darkened(0.3)))
+			b.add_theme_stylebox_override("pressed", stile_btn(VERDE, ORO.darkened(0.3), true))
+			b.add_theme_color_override("font_color", SCURO)
+			b.add_theme_color_override("font_hover_color", SCURO)
+			b.add_theme_color_override("font_pressed_color", SCURO)
+		else:
+			b.add_theme_stylebox_override("normal", stile_btn(Color("1d4030"), Color("0e271c")))
+			b.add_theme_stylebox_override("hover", stile_btn(Color("27533f"), VERDE))
+			b.add_theme_stylebox_override("pressed", stile_btn(Color("163428"), VERDE, true))
+			b.add_theme_color_override("font_color", TESTO)
+			b.add_theme_color_override("font_hover_color", TESTO)
+			b.add_theme_color_override("font_pressed_color", TESTO)
+
+
+func _pose_fermo() -> void:
+	pose_prev = "fermo"
+	if is_instance_valid(preview):
+		preview.pose = "fermo"
+		preview.trofeo = ""
+		preview.alza = 1.0
+
+
+func _pose_esulta() -> void:
+	pose_prev = "esulta"
+	if is_instance_valid(preview):
+		preview.pose = "esulta"
+		preview.trofeo = ""
+		preview.alza = 1.0
+
+
+func _pose_trofeo() -> void:
+	pose_prev = "trofeo"
+	if is_instance_valid(preview):
+		preview.pose = "trofeo"
+		preview.trofeo = "coppa"
+		preview.alza = 1.0
+
+
+func _casuale() -> void:
+	S.av = {"pelle": R(0, 7), "capelli": R(0, 11), "col_cap": R(0, 9), "barba": R(0, 5), "occhi": R(0, 5), "scarpini": R(0, 7), "corp": R(0, 2), "acc": R(0, 4), "acc2": R(0, 3), "gioiello": R(0, 2), "tatt": R(0, 2)}
+	personalizza()
+
+
+func personalizza() -> void:
+	svuota()
+	swatch_ref = {}
+	swatch_col = {}
+	grid_ref = {}
+	tab_btns = []
+	tab_sez = []
+	var dav: Dictionary = av_default()
+	for k in dav:
+		if not S.av.has(k):
+			S.av[k] = dav[k]
+	banner("Personalizza il tuo giocatore", "Passo 2 di 3: tocca le miniature per vedere subito il risultato")
+	var riga: HBoxContainer = HBoxContainer.new()
+	riga.add_theme_constant_override("separation", 16)
+	box.add_child(riga)
+	var sx: VBoxContainer = scheda(BORDO, riga)
+	var spx: Control = sx.get_parent() as Control
+	spx.size_flags_horizontal = Control.SIZE_FILL
+	spx.custom_minimum_size = Vector2(360, 0)
+	intest("Anteprima", sx)
+	preview = AvatarView.new()
+	preview.animato = true
+	preview.pose = pose_prev
+	preview.alza = 1.0
+	if pose_prev == "trofeo":
+		preview.trofeo = "coppa"
+	preview.custom_minimum_size = Vector2(300, 470)
+	preview.imposta(S.av, kit_neutro(), str(S.num))
+	sx.add_child(preview)
+	lab("Maglia di prova: il tuo club lo sceglierai dopo.", 15, GRIGIO, sx)
+	var rp: HFlowContainer = HFlowContainer.new()
+	rp.add_theme_constant_override("h_separation", 8)
+	sx.add_child(rp)
+	bott("In piedi", _pose_fermo, rp)
+	bott("Esulta", _pose_esulta, rp)
+	bott("Trofeo", _pose_trofeo, rp)
+	bott("Casuale", _casuale, sx)
+
+	var dx: VBoxContainer = scheda(BORDO, riga)
+	var rt: HFlowContainer = HFlowContainer.new()
+	rt.add_theme_constant_override("h_separation", 8)
+	rt.add_theme_constant_override("v_separation", 8)
+	dx.add_child(rt)
+	var nomi_tab: Array = ["Volto", "Capelli", "Barba", "Accessori", "Corpo", "Scarpini"]
+	for i in nomi_tab.size():
+		var b: Button = bott(str(nomi_tab[i]), _tab.bind(i), rt)
+		tab_btns.append(b)
+	for i in nomi_tab.size():
+		var sez: VBoxContainer = VBoxContainer.new()
+		sez.add_theme_constant_override("separation", 12)
+		dx.add_child(sez)
+		tab_sez.append(sez)
+	swatch_riga("Carnagione", "pelle", AvatarView.PELLI, tab_sez[0])
+	swatch_riga("Colore degli occhi", "occhi", AvatarView.COL_OCCHI, tab_sez[0])
+	griglia("Gioielli", "gioiello", AvatarView.NOMI_GIO, tab_sez[0], "busto")
+	griglia("Taglio di capelli", "capelli", AvatarView.NOMI_CAP, tab_sez[1], "busto")
+	swatch_riga("Colore dei capelli", "col_cap", AvatarView.COL_CAP, tab_sez[1])
+	griglia("Barba e baffi", "barba", AvatarView.NOMI_BARBA, tab_sez[2], "busto")
+	swatch_riga("Colore della barba (come i capelli)", "col_cap", AvatarView.COL_CAP, tab_sez[2])
+	griglia("Accessori per il viso", "acc", AvatarView.NOMI_ACC, tab_sez[3], "busto")
+	griglia("Divisa e dettagli", "acc2", AvatarView.NOMI_ACC2, tab_sez[3], "mezzo")
+	griglia("Tatuaggi", "tatt", AvatarView.NOMI_TATT, tab_sez[3], "mezzo")
+	griglia("Corporatura", "corp", AvatarView.NOMI_CORP, tab_sez[4], "mezzo")
+	swatch_riga("Colore degli scarpini", "scarpini", AvatarView.COL_SCARP, tab_sez[5])
+	_tab(tab_prev)
+	aggiorna_thumbs()
+
+	var rb: HBoxContainer = HBoxContainer.new()
+	rb.add_theme_constant_override("separation", 12)
+	box.add_child(rb)
+	bott("Indietro", crea, rb)
+	var bi: Button = bott("Avanti: scegli la squadra", scegli_squadra, rb, true)
+	bi.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
+# ================= SCELTA DELLA SQUADRA =================
+func _ord_liv2(a: String, b: String) -> bool:
+	return absi(liv(a) - _tl) < absi(liv(b) - _tl)
+
+
+func _scelta_off(i: int) -> void:
+	inizia(i)
+
+
+func scegli_squadra() -> void:
+	var c: Dictionary = PARTENZE[S.partenza]
+	_tl = int(c.tl)
+	S["att"] = genera_att()
+	var mondo: Dictionary = genera_mondo()
+	S["mondo"] = mondo
+	G = {"lege": mondo.lege, "club": mondo.club}
+	var ruolo: String = ruolo_scelto()
+	var o: int = ovr_calc(S.att, ruolo)
+	var giovane: bool = S.partenza == "giovanile"
+	var pid: String = str(S.paese)
+	if pid == "":
+		var pp: Dictionary = pick(PAESI)
+		pid = str(pp.id)
+	var cand: Array = []
+	for pass_n in 2:
+		for nome in mondo.club:
+			var cc: Dictionary = mondo.club[nome]
+			var lgk: String = str(cc.lg)
+			var tier: int = int(mondo.lege[lgk].t)
+			if giovane != (tier == 0):
+				continue
+			if pass_n == 0 and str(mondo.lege[lgk].paese) != pid:
+				continue
+			cand.append(str(nome))
+		if cand.size() >= 5:
+			break
+		cand = []
+	cand.sort_custom(_ord_liv2)
+	var vicine: Array = cand.slice(0, 5)
+	vicine.shuffle()
+	var offerte: Array = []
+	for i in 3:
+		var nome2: String = str(vicine[i])
+		var l: int = liv(nome2)
+		var pr: String = promessa_ov(l, o)
+		var anni: int = R(2, 4)
+		if S.partenza == "veterano":
+			anni = R(1, 2)
+		var st: int = int(float(stip_calc(l, pr, o, int(c.rep))) * ric_club(nome2))
+		offerte.append({"n": nome2, "l": l, "pr": pr, "anni": anni, "stip": maxi(8, st), "info": info_club(nome2), "ob": obiettivo_lega(nome2)})
+	S["off"] = offerte
+
+	svuota()
+	banner("Scegli la tua squadra", "Passo 3 di 3: tre club si sono fatti avanti")
+	var riga: HBoxContainer = HBoxContainer.new()
+	riga.add_theme_constant_override("separation", 14)
+	box.add_child(riga)
+	for i in 3:
+		var ofr: Dictionary = offerte[i]
+		var cs: VBoxContainer = scheda(BORDO, riga)
+		centrato(crest(str(ofr.n), 56, 64), cs)
+		centra(lab(str(ofr.n), 24, ORO, cs))
+		centra(lab(str(ofr.info), 15, GRIGIO, cs))
+		var av_s: AvatarView = AvatarView.new()
+		av_s.custom_minimum_size = Vector2(150, 250)
+		av_s.imposta(S.av, kit_di(str(ofr.n)), str(S.num))
+		centrato(av_s, cs)
+		barra("Livello", int(ofr.l), VERDE, cs)
+		lab("Obiettivo del club: " + str(ofr.ob) + ".", 16, TESTO, cs)
+		lab("Stipendio: " + eur(int(ofr.stip)), 17, TESTO, cs)
+		var durata: String = "%d anni" % ofr.anni
+		if int(ofr.anni) == 1:
+			durata = "1 anno"
+		lab("Durata: " + durata, 17, TESTO, cs)
+		lab("Ruolo: " + str(ofr.pr), 17, ORO, cs)
+		lab(str(PROM_TXT[ofr.pr]), 15, GRIGIO, cs)
+		bott("Firma per questa squadra", _scelta_off.bind(i), cs, true)
+	bott("Indietro", personalizza)
+
+
+func inizia(i: int) -> void:
+	var c: Dictionary = PARTENZE[S.partenza]
+	var ofr: Dictionary = S.off[i]
+	var mondo: Dictionary = S.mondo
+	var ruolo: String = ruolo_scelto()
+	var club_n: String = str(ofr.n)
+	var lgk: String = str(mondo.club[club_n].lg)
+	var madre: String = ""
+	if mondo.club[club_n].has("m"):
+		madre = str(mondo.club[club_n].m)
+	var nome: String = String(S.nome).strip_edges()
+	if nome == "":
+		nome = str(pick(NOMI)) + " " + str(pick(COGNOMI))
+	var comp: Array = []
+	for k in 10:
+		comp.append(str(pick(NOMI)).substr(0, 1) + ". " + str(pick(COGNOMI)))
+	G = {
+		"nome": nome, "eta": c.eta, "pos": S.pos, "ruolo": ruolo, "num": int(S.num), "a": S.att.duplicate(true),
+		"sq": {"n": club_n, "l": ofr.l}, "anni": ofr.anni, "rep": c.rep, "drama": S.drama, "diff": S.diff,
+		"forma": 57, "energia": 100, "morale": 62, "mister": 52, "inf": 0, "inf_nome": "",
+		"sett": 1, "stagione": 1, "alle": {"tec": 0.0, "fis": 0.0, "vel": 0.0, "men": 0.0},
+		"st": {"pres": 0, "gol": 0, "ass": 0, "voto": 0.0, "v": 0, "n": 0, "p": 0},
+		"car": {"pres": 0, "gol": 0, "ass": 0, "titoli": 0},
+		"trofei": [], "storico": [], "compagni": comp, "reg": ["Hai firmato per %s. Inizia la tua carriera." % club_n],
+		"ev": null, "pm": null, "sum": {}, "pr": ofr.pr, "stip": ofr.stip,
+		"av": S.av.duplicate(true), "obj": {},
+		"lege": mondo.lege, "club": mondo.club, "lega": lgk, "madre": madre, "albo": {},
+		"cal": [], "tab": {}, "ris": {},
+	}
+	nuova_stagione_lega()
+	nuovo_obiettivo()
+	salva()
+	gioco()
+
+
+# ================= SCHERMATA PRINCIPALE =================
+func _salva_click() -> void:
+	salva()
+	log_add("Partita salvata.")
+	gioco()
+
+
+func chiedi_salta() -> void:
+	svuota()
+	banner("Salta la stagione", "Simula tutte le settimane rimaste")
+	var c: VBoxContainer = scheda(ORO)
+	var restano: int = ngiorn() + 1 - int(G.sett)
+	lab("Mancano %d giornate. Se continui, il gioco simula tutte le settimane rimaste: allenamenti automatici e partite senza il mini gioco del tiro." % restano, 19, TESTO, c)
+	lab("Alla fine vedrai il bilancio della stagione, i premi e le proposte.", 17, GRIGIO, c)
+	var r: HBoxContainer = HBoxContainer.new()
+	r.add_theme_constant_override("separation", 12)
+	c.add_child(r)
+	bott("Annulla", gioco, r)
+	var b: Button = bott("Simula la stagione", salta_stagione, r, true)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
+func gioco() -> void:
+	svuota()
+	barra_nav("gioco")
+	var o: int = ovr()
+	var t: Dictionary = G.st
+	var righe: Array = classifica()
+	var pn: int = pos_nostra(righe)
+	var riga_mia: Dictionary = G.tab[G.sq.n]
+	var testa: HBoxContainer = HBoxContainer.new()
+	testa.add_theme_constant_override("separation", 18)
+	box.add_child(testa)
+	var carta: CartaGiocatore = CartaGiocatore.new()
+	carta.imposta(G.av, kit_di(str(G.sq.n)), str(G.nome), str(G.pos), str(G.sq.n), int(G.num), o, G.a)
+	testa.add_child(carta)
+	var dx: VBoxContainer = VBoxContainer.new()
+	dx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dx.add_theme_constant_override("separation", 12)
+	testa.add_child(dx)
+	var ci: VBoxContainer = scheda(BORDO, dx)
+	var rc: HBoxContainer = HBoxContainer.new()
+	rc.add_theme_constant_override("separation", 16)
+	ci.add_child(rc)
+	rc.add_child(crest(str(G.sq.n), 58, 66))
+	var inf: VBoxContainer = VBoxContainer.new()
+	inf.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inf.add_theme_constant_override("separation", 2)
+	rc.add_child(inf)
+	lab("%s   #%d" % [G.nome, G.num], 30, TESTO, inf, false)
+	lab("%d anni  -  %s  -  stagione %d" % [G.eta, G.pos, G.stagione], 16, GRIGIO, inf, false)
+	lab("%s  -  %s" % [G.sq.n, nome_lega_corr()], 16, ORO, inf)
+	if str(G.madre) != "":
+		var mt: String = "In prestito dal club %s." % G.madre
+		if giov_lega():
+			mt = "Settore giovanile del club %s." % G.madre
+		lab(mt, 15, GRIGIO, inf)
+	var anni_txt: String = "anni"
+	if int(G.anni) == 1:
+		anni_txt = "anno"
+	lab("Contratto: %s, ancora %d %s. Ruolo: %s." % [eur(int(G.stip)), G.anni, anni_txt, G.pr], 15, GRIGIO, inf)
+	var rch: HBoxContainer = HBoxContainer.new()
+	rch.add_theme_constant_override("separation", 10)
+	dx.add_child(rch)
+	chip(rch, "POSIZIONE", "%d° / %d" % [pn, righe.size()], ORO)
+	chip(rch, "PUNTI", str(riga_mia.pt), VERDE)
+	var col_f: Color = VERDE
+	if int(G.forma) < 45:
+		col_f = ROSSO
+	elif int(G.forma) < 60:
+		col_f = ORO
+	chip(rch, "FORMA", str(int(G.forma)), col_f)
+	var col_e: Color = VERDE
+	if int(G.energia) < 30:
+		col_e = ROSSO
+	elif int(G.energia) < 55:
+		col_e = ORO
+	chip(rch, "ENERGIA", str(int(G.energia)), col_e)
+
+	if G.ev != null:
+		var ce: VBoxContainer = scheda(ORO)
+		intest(str(G.ev.t), ce, 26)
+		lab(str(G.ev.x), 18, TESTO, ce)
+		var re: HFlowContainer = HFlowContainer.new()
+		re.add_theme_constant_override("h_separation", 10)
+		ce.add_child(re)
+		for i in G.ev.c.size():
+			bott(str(G.ev.c[i]), risolvi_ev.bind(i), re)
+	elif int(G.sett) <= ngiorn():
+		var ca: VBoxContainer = scheda(VERDE)
+		intest("Giornata %d di %d: scegli l'allenamento" % [G.sett, ngiorn()], ca, 24)
+		var nx: Dictionary = partita_nostra()
+		var dove: String = "in trasferta"
+		if nx.casa:
+			dove = "in casa"
+		var rn: HBoxContainer = HBoxContainer.new()
+		rn.add_theme_constant_override("separation", 12)
+		ca.add_child(rn)
+		rn.add_child(crest(str(nx.opn), 34, 40))
+		lab("Prossima partita: %s (%s), livello avversario %d." % [nx.opn, dove, liv(str(nx.opn))], 16, GRIGIO, rn)
+		var ra: HFlowContainer = HFlowContainer.new()
+		ra.add_theme_constant_override("h_separation", 10)
+		ra.add_theme_constant_override("v_separation", 10)
+		ca.add_child(ra)
+		for k in ATTR:
+			bott(str(ATTR[k]), allena.bind(k), ra, true)
+		bott("Riposo", allena.bind("rip"), ra)
+		if int(G.inf) > 0:
+			lab("Sei infortunato: l'allenamento rende la metà.", 16, ROSSO, ca)
+		else:
+			lab("Dopo l'allenamento si gioca la partita in diretta: quando hai un'occasione, il tiro lo fai tu.", 16, GRIGIO, ca)
+
+	var due: HBoxContainer = HBoxContainer.new()
+	due.add_theme_constant_override("separation", 14)
+	box.add_child(due)
+	var cat: VBoxContainer = scheda(BORDO, due)
+	intest("Attributi", cat)
+	var rr0: HBoxContainer = HBoxContainer.new()
+	rr0.add_theme_constant_override("separation", 10)
+	cat.add_child(rr0)
+	var rad: RadarView = RadarView.new()
+	rad.vals = [G.a.tec, G.a.fis, G.a.vel, G.a.men]
+	rr0.add_child(rad)
+	var bv: VBoxContainer = VBoxContainer.new()
+	bv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bv.alignment = BoxContainer.ALIGNMENT_CENTER
+	bv.add_theme_constant_override("separation", 10)
+	rr0.add_child(bv)
+	for k in ATTR:
+		barra(str(ATTR[k]), int(G.a[k]), VERDE, bv)
+	var cco: VBoxContainer = scheda(BORDO, due)
+	intest("Condizione", cco)
+	barra("Forma", int(G.forma), VERDE, cco)
+	barra("Energia", int(G.energia), ORO, cco)
+	barra("Morale", int(G.morale), VERDE, cco)
+	barra("Mister", int(G.mister), VERDE, cco)
+	barra("Reputazione", int(G.rep), ORO, cco)
+	if int(G.inf) > 0:
+		lab("Infortunio: %s" % G.inf_nome, 16, ROSSO, cco)
+
+	if G.has("obj") and G.obj.size() > 0:
+		var co: VBoxContainer = scheda(BORDO)
+		intest("Obiettivo della stagione", co)
+		lab(str(G.obj.txt), 18, TESTO, co)
+		var pr: Array = progresso_obj()
+		barra(str(pr[0]), int(pr[1]), ORO, co)
+
+	var cs: VBoxContainer = scheda(BORDO)
+	intest("Stagione in corso", cs)
+	var rs0: HBoxContainer = HBoxContainer.new()
+	rs0.add_theme_constant_override("separation", 20)
+	cs.add_child(rs0)
+	var rs1: VBoxContainer = VBoxContainer.new()
+	rs1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rs1.alignment = BoxContainer.ALIGNMENT_CENTER
+	rs0.add_child(rs1)
+	var voto_txt: String = "-"
+	if int(t.pres) > 0:
+		voto_txt = "%.1f" % (float(t.voto) / float(t.pres))
+	riga_stat(rs1, [[t.pres, "presenze"], [t.gol, "gol"], [t.ass, "assist"], [voto_txt, "voto medio"]])
+	var dn: DonutView = DonutView.new()
+	dn.parti = [[riga_mia.v, VERDE], [riga_mia.d, ORO], [riga_mia.p, ROSSO]]
+	dn.centro = str(riga_mia.pt)
+	dn.sub = "punti  (%d-%d-%d)" % [riga_mia.v, riga_mia.d, riga_mia.p]
+	dn.custom_minimum_size = Vector2(170, 170)
+	rs0.add_child(dn)
+
+	var ccl: VBoxContainer = scheda(BORDO)
+	intest("Classifica: " + nome_lega_corr(), ccl)
+	classifica_ui(ccl, false)
+	legenda_ui(ccl)
+
+	var cn: VBoxContainer = scheda(BORDO)
+	intest("Ultime notizie", cn)
+	for r in G.reg:
+		lab(str(r), 16, GRIGIO, cn)
+	var rr: HFlowContainer = HFlowContainer.new()
+	rr.add_theme_constant_override("h_separation", 10)
+	rr.add_theme_constant_override("v_separation", 10)
+	box.add_child(rr)
+	if int(G.sett) <= ngiorn() and G.ev == null:
+		bott("Salta stagione", chiedi_salta, rr)
+	bott("Salva", _salva_click, rr)
+	var atxt: String = "No"
+	if audio_on:
+		atxt = "Sì"
+	bott("Audio: " + atxt, _toggle_audio_hub, rr)
+
+
+func classifica_screen() -> void:
+	svuota()
+	barra_nav("class")
+	var giocate: int = mini(int(G.sett) - 1, ngiorn())
+	banner("Classifica", "%s  -  dopo %d giornate su %d" % [nome_lega_corr(), giocate, ngiorn()])
+	var c: VBoxContainer = scheda(BORDO)
+	classifica_ui(c, false)
+	legenda_ui(c)
+	var due: HBoxContainer = HBoxContainer.new()
+	due.add_theme_constant_override("separation", 14)
+	box.add_child(due)
+	var cu: VBoxContainer = scheda(BORDO, due)
+	intest("Ultimi risultati", cu)
+	var da: int = maxi(0, int(G.sett) - 6)
+	var qq: int = 0
+	for r in range(int(G.sett) - 2, da - 1, -1):
+		if G.ris.has(r):
+			var e: Dictionary = G.ris[r]
+			var dove: String = "(trasf.)"
+			if e.casa:
+				dove = "(casa)"
+			var colr: Color = TESTO
+			if int(e.gf) > int(e.ga):
+				colr = VERDE
+			elif int(e.gf) < int(e.ga):
+				colr = ROSSO
+			var rr: HBoxContainer = HBoxContainer.new()
+			rr.add_theme_constant_override("separation", 10)
+			cu.add_child(rr)
+			rr.add_child(crest(str(e.opn), 24, 28))
+			lab("Giornata %d: %s %s   %d-%d" % [r + 1, e.opn, dove, e.gf, e.ga], 16, colr, rr)
+			qq += 1
+	if qq == 0:
+		lab("Nessuna partita ancora giocata.", 16, GRIGIO, cu)
+	var cp: VBoxContainer = scheda(BORDO, due)
+	intest("Prossime partite", cp)
+	var vistap: int = 0
+	for r in range(int(G.sett) - 1, mini(ngiorn(), int(G.sett) + 4)):
+		var giro: Array = G.cal[r]
+		for c2 in giro:
+			var avv: String = ""
+			var dove2: String = ""
+			if c2[0] == G.sq.n:
+				avv = str(c2[1])
+				dove2 = "casa"
+			elif c2[1] == G.sq.n:
+				avv = str(c2[0])
+				dove2 = "trasferta"
+			if avv != "":
+				var rp: HBoxContainer = HBoxContainer.new()
+				rp.add_theme_constant_override("separation", 10)
+				cp.add_child(rp)
+				rp.add_child(crest(avv, 24, 28))
+				lab("Giornata %d: %s (%s), livello %d" % [r + 1, avv, dove2, liv(avv)], 16, TESTO, rp)
+				vistap += 1
+	if vistap == 0:
+		lab("Stagione finita.", 16, GRIGIO, cp)
+
+
+# ================= PAGINA MONDO =================
+func _set_mondo_paese(i: int) -> void:
+	mondo_paese = str(PAESI[i].id)
+	mondo_screen()
+
+
+func _ord_liv_desc(a: String, b: String) -> bool:
+	return liv(a) > liv(b)
+
+
+func badge_paese(pid: String) -> Control:
+	var hue: float = float(absi(hash(pid)) % 360) / 360.0
+	var bd: PanelContainer = PanelContainer.new()
+	bd.add_theme_stylebox_override("panel", stile(Color.from_hsv(hue, 0.55, 0.55), Color.from_hsv(hue, 0.4, 0.85), 14, 2, 0))
+	bd.custom_minimum_size = Vector2(64, 52)
+	bd.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var l: Label = Label.new()
+	l.text = pid
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", 24)
+	l.add_theme_font_override("font", _fb)
+	l.add_theme_color_override("font_color", Color.WHITE)
+	bd.add_child(l)
+	return bd
+
+
+func mondo_screen() -> void:
+	svuota()
+	barra_nav("mondo")
+	banner("I campionati del mondo", "%d paesi e %d club" % [PAESI.size(), G.club.size()])
+	var voci: Array = []
+	var cur: int = 0
+	var nome_p: String = ""
+	for i in PAESI.size():
+		voci.append(str(PAESI[i].nome))
+		if str(PAESI[i].id) == mondo_paese:
+			cur = i
+			nome_p = str(PAESI[i].nome)
+	var cm: VBoxContainer = scheda(BORDO)
+	var rh: HBoxContainer = HBoxContainer.new()
+	rh.add_theme_constant_override("separation", 16)
+	cm.add_child(rh)
+	rh.add_child(badge_paese(mondo_paese))
+	var rv: VBoxContainer = VBoxContainer.new()
+	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rh.add_child(rv)
+	menu_scelta("Paese: " + nome_p, voci, cur, _set_mondo_paese, rv)
+	for t in range(1, 5):
+		var key: String = "%s%d" % [mondo_paese, t]
+		if not G.lege.has(key):
+			continue
+		var lg: Dictionary = G.lege[key]
+		var bordo: Color = BORDO
+		if key == G.lega:
+			bordo = ORO
+		var c: VBoxContainer = scheda(bordo)
+		intest(str(lg.nome), c, 24)
+		var somma: int = 0
+		for x in lg.cl:
+			somma += liv(str(x))
+		lab("%d club, livello medio %d. Divisione numero %d." % [lg.cl.size(), int(float(somma) / float(lg.cl.size())), lg.t], 16, GRIGIO, c)
+		if G.albo.has(key):
+			var ab: Dictionary = G.albo[key]
+			var rcm: HBoxContainer = HBoxContainer.new()
+			rcm.add_theme_constant_override("separation", 10)
+			c.add_child(rcm)
+			rcm.add_child(crest(str(ab.cam), 30, 34))
+			lab("Campione dell'ultima stagione: %s" % ab.cam, 17, ORO, rcm)
+			if ab.su.size() > 0:
+				lab("Promosse: " + ", ".join(PackedStringArray(ab.su)), 15, VERDE, c)
+			if ab.giu.size() > 0:
+				lab("Retrocesse: " + ", ".join(PackedStringArray(ab.giu)), 15, ROSSO, c)
+		var ordinati: Array = lg.cl.duplicate()
+		ordinati.sort_custom(_ord_liv_desc)
+		lab("Club più forti:", 15, GRIGIO, c)
+		for i in mini(5, ordinati.size()):
+			var nm: String = str(ordinati[i])
+			var colr: Color = TESTO
+			if nm == G.sq.n:
+				colr = ORO
+			var rcl: HBoxContainer = HBoxContainer.new()
+			rcl.add_theme_constant_override("separation", 10)
+			c.add_child(rcl)
+			var mg: MagliaView = MagliaView.new()
+			mg.custom_minimum_size = Vector2(28, 28)
+			mg.kit = kit_di(nm)
+			rcl.add_child(mg)
+			lab(nm, 16, colr, rcl)
+			var pbm: ProgressBar = ProgressBar.new()
+			pbm.max_value = 100
+			pbm.value = liv(nm)
+			pbm.show_percentage = false
+			pbm.custom_minimum_size = Vector2(160, 12)
+			pbm.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			pbm.add_theme_stylebox_override("background", stile(Color(0, 0, 0, 0.35), Color(1, 1, 1, 0.06), 6, 1, 0))
+			pbm.add_theme_stylebox_override("fill", stile(VERDE, VERDE.lightened(0.35), 6, 1, 0))
+			rcl.add_child(pbm)
+			lab(str(liv(nm)), 15, GRIGIO, rcl, false)
+	if G.albo.size() == 0:
+		lab("Quando finirà la prima stagione vedrai qui i campioni di ogni paese.", 16, GRIGIO)
+
+
+# ================= ALLENAMENTO E SETTIMANA =================
+func prepara_settimana(f: String) -> Variant:
+	if f == "rip":
+		G.energia += 20
+	else:
+		if int(G.inf) > 0:
+			G.alle[f] += 0.5
+		else:
+			G.alle[f] += 1.0
+		G.energia -= 5
+	var o: int = ovr()
+	var giro: int = int(G.sett) - 1
+	var pn: Dictionary = partita_nostra()
+	var opn: String = str(pn.opn)
+	var casa: bool = bool(pn.casa)
+	sim_altre(giro)
+	var m: Variant = null
+	if int(G.inf) > 0:
+		G.inf -= 1
+		var resto: String = "rientri la prossima settimana"
+		if int(G.inf) > 0:
+			resto = "ancora %d settimane" % G.inf
+		log_add("Sei fuori per infortunio (%s): %s." % [G.inf_nome, resto])
+		G.energia += 4
+		G.forma -= 2
+		var la: int = liv(str(G.sq.n))
+		var lb: int = liv(opn)
+		var rs: Array = []
+		if casa:
+			rs = risultato_sim(la + 3, lb)
+		else:
+			rs = risultato_sim(la, lb + 3)
+		registra_nostra(giro, casa, opn, int(rs[0]), int(rs[1]))
+		log_add("Giornata %d: %s %d-%d %s (senza di te)." % [giro + 1, G.sq.n, rs[0], rs[1], opn])
+	else:
+		m = prepara_partita(o, [opn, liv(opn)], liv(opn) + R(-3, 3), f, casa, giro)
+	correggi()
+	var probs: Array = [0.03, 0.06, 0.11]
+	if randf() < float(probs[int(G.drama)]):
+		var pool: Array = []
+		for e in EVENTI:
+			if int(e["m"]) <= int(G.drama):
+				pool.append(e)
+		G.ev = pick(pool)
+	return m
+
+
+func allena(f: String) -> void:
+	if occupato:
+		return
+	occupato = true
+	var m: Variant = prepara_settimana(f)
+	G.sett += 1
+	if m != null:
+		G.pm = m
+		await partita()
+		G.pm = null
+	occupato = false
+	if int(G.sett) > ngiorn() and G.ev == null:
+		fine_stagione()
+	else:
+		gioco()
+
+
+func scelta_auto() -> String:
+	if int(G.energia) < 35:
+		return "rip"
+	var peggiore: String = "tec"
+	var minv: int = 999
+	for k in ATTR:
+		if int(G.a[k]) < minv:
+			minv = int(G.a[k])
+			peggiore = str(k)
+	return peggiore
+
+
+func evento_auto() -> void:
+	var r: String = esito_ev(str(G.ev.id), R(0, 1))
+	correggi()
+	log_add("%s: %s" % [G.ev.t, r])
+	G.ev = null
+
+
+func risolvi_auto(m: Dictionary) -> void:
+	for e in m.ev:
+		if e.get("sh", false) and not m.sr.has(e.id):
+			var pa: float = clampf(0.35 + float(ovr()) / 190.0 - float(int(m.opl) - 60) / 210.0, 0.27, 0.82)
+			imposta_tiro(e, randf() < pa, "para")
+	m.i = m.ev.size()
+
+
+func salta_stagione() -> void:
+	if occupato:
+		return
+	occupato = true
+	var guard: int = 0
+	while int(G.sett) <= ngiorn() and guard < 60:
+		guard += 1
+		if G.ev != null:
+			evento_auto()
+		var m: Variant = prepara_settimana(scelta_auto())
+		G.sett += 1
+		if m != null:
+			G.pm = m
+			risolvi_auto(m)
+			chiudi_partita(m)
+			G.pm = null
+	if G.ev != null:
+		evento_auto()
+	occupato = false
+	fine_stagione()
+
+
+func esito_ev(id: String, i: int) -> String:
+	match id:
+		"sponsor":
+			if i == 0:
+				G.rep += 4
+				G.forma -= 4
+				return "Più visibilità, ma qualche distrazione."
+			G.morale += 2
+			return "Preferisci pensare solo al campo."
+		"spogliatoio":
+			if i == 0:
+				G.mister += 5
+				G.alle.men += 3.0
+				G.morale += 3
+				return "Cresce il tuo ruolo di leader."
+			G.alle.tec += 3.0
+			return "Ti dedichi a sedute extra di tecnica."
+		"convocazione":
+			if i == 0:
+				G.rep += 5
+				G.energia -= 10
+				G.morale += 6
+				return "Che orgoglio: giochi con la maglia della Nazionale."
+			G.energia += 10
+			G.mister += 3
+			G.rep -= 2
+			return "Rinunci alla convocazione e ti riposi."
+		"mister":
+			if i == 0:
+				G.mister += 8
+				G.morale -= 3
+				return "Ricuci il rapporto con il mister."
+			G.mister -= 13
+			G.morale += 4
+			return "Ti sfoghi, ma il rapporto si incrina."
+		"social":
+			if i == 0:
+				G.morale -= 4
+				G.rep += 1
+				return "Il caso si sgonfia in pochi giorni."
+			if randi() % 2 == 0:
+				G.morale -= 12
+				G.forma -= 6
+				G.rep -= 3
+				return "Il caso cresce e ti pesa in campo."
+			return "Dopo qualche giorno nessuno ne parla più."
+		"rivale":
+			if i == 0:
+				G.alle.men += 2.0
+				G.energia -= 6
+				G.mister += 2
+				return "Rispondi sul campo: il mister apprezza."
+			if randi() % 2 == 0:
+				G.mister += 5
+				return "Il mister ti rassicura: sei ancora importante."
+			G.mister -= 3
+			return "Il mister resta sulle sue."
+		"famiglia":
+			if i == 0:
+				G.forma -= 6
+				G.morale += 6
+				G.energia += 10
+				return "Salti qualche allenamento ma torni più sereno."
+			G.morale -= 10
+			G.forma -= 3
+			G.a.men = maxi(1, int(G.a.men) - 1)
+			return "Stringi i denti, ma la testa non è libera."
+		_:
+			if i == 0:
+				G.mister += 4
+				G.rep += 1
+				return "Il mister apprezza la lealtà."
+			G.mister -= 6
+			G.rep += 3
+			return "Il tuo nome gira, ma il mister non è contento."
+
+
+func risolvi_ev(i: int) -> void:
+	var r: String = esito_ev(str(G.ev.id), i)
+	correggi()
+	log_add("%s: %s" % [G.ev.t, r])
+	G.ev = null
+	if int(G.sett) > ngiorn():
+		fine_stagione()
+	else:
+		gioco()
+
+
+# ================= PREPARAZIONE PARTITA =================
+func minuti(n: int) -> Array:
+	var a: Array = []
+	for i in n:
+		a.append(R(3, 89))
+	a.sort()
+	return a
+
+
+func _ord_ev(a: Dictionary, b: Dictionary) -> bool:
+	return int(a["mi"]) < int(b["mi"])
+
+
+func prepara_partita(o: int, avv: Array, opp: int, f: String, casa: bool, giro: int) -> Dictionary:
+	var tb: Dictionary = {"Titolare": 0.11, "Alternanza": 0.01, "Riserva": -0.08}
+	var bonus: float = tb[G.pr]
+	var sp: float = clampf(0.58 + float(o - int(G.sq.l)) / 19.0 + float(int(G.mister) - 50) / 145.0 + bonus, 0.14, 1.0)
+	var tit: bool = randf() < sp
+	var ts: float = float(G.sq.l)
+	if tit:
+		ts += float(o - int(G.sq.l)) / 8.0
+	if casa:
+		ts += 2.0
+	var tp: float = 1.0 / (1.0 + exp(-(ts - float(opp)) / 9.0))
+	var r: float = randf()
+	var pw: float = tp * 0.8
+	var res: String = "l"
+	if r < pw:
+		res = "w"
+	elif r < pw + 0.22:
+		res = "d"
+	var gf: int = 0
+	var ga: int = 0
+	if res == "w":
+		gf = R(1, 4)
+		ga = R(0, gf - 1)
+	elif res == "d":
+		gf = R(0, 2)
+		ga = gf
+	else:
+		ga = R(1, 3)
+		gf = R(0, ga - 1)
+	var g: int = 0
+	var ass: int = 0
+	var perf: float = 0.0
+	if tit:
+		for i in gf:
+			if randf() < float(KG[G.ruolo]) * (float(o) / 70.0):
+				g += 1
+			elif randf() < float(KA[G.ruolo]) * (float(o) / 70.0):
+				ass += 1
+		perf = float(o) + float(int(G.forma) - 50) / 5.0 + float(int(G.energia) - 65) / 8.0 + float(int(G.morale) - 50) / 10.0 - float(int(G.diff) - 1) * 1.75
+	var me: String = cognome()
+	var comp: Array = G.compagni
+	var ev: Array = []
+	var inizio: String = "Parti dalla panchina."
+	if tit:
+		inizio = "Sei partito titolare."
+	var luogo: String = "in trasferta"
+	if casa:
+		luogo = "in casa"
+	ev.append({"mi": 1, "t": "n", "x": "Calcio d'inizio: %s contro %s (%s). %s" % [G.sq.n, avv[0], luogo, inizio]})
+	ev.append({"mi": 45, "t": "n", "x": "Fine primo tempo."})
+	var gm: Array = minuti(gf)
+	var gi: Array = range(gf)
+	gi.shuffle()
+	var segn: Array = gi.slice(0, g)
+	var assi: Array = gi.slice(g, g + ass)
+	var nsh: int = 0
+	for i in gm.size():
+		if segn.has(i):
+			ev.append({"mi": gm[i], "t": "me", "sh": true, "id": nsh, "x": "Che occasione per %s! Hai la porta davanti." % me})
+			nsh += 1
+		elif assi.has(i):
+			ev.append({"mi": gm[i], "t": "tg", "x": "Assist di %s: %s insacca!" % [me, str(pick(comp))]})
+		else:
+			ev.append({"mi": gm[i], "t": "tg", "x": "Gol di %s, %s segna." % [str(pick(comp)), G.sq.n]})
+	for x in minuti(ga):
+		ev.append({"mi": x, "t": "og", "x": "Gol del %s: %s ci punisce." % [avv[0], str(pick(COGNOMI))]})
+	if tit and G.ruolo != "Portiere":
+		var extra: int = R(0, 2)
+		if G.ruolo == "Difensore":
+			extra = R(0, 1)
+		for i in extra:
+			ev.append({"mi": R(5, 88), "t": "me", "sh": true, "id": nsh, "x": "Altra occasione per %s! La palla è tua." % me})
+			nsh += 1
+	var azioni: Array = ["gestisce bene il pallone", "si fa vedere in ripartenza", "è molto attento in marcatura", "sfiora il gol di testa"]
+	var esiti: Array = ["para il portiere", "palla alta", "sfiora il palo"]
+	for i in 4:
+		if tit and i % 2 == 1:
+			ev.append({"mi": R(5, 88), "t": "me", "x": "%s %s." % [me, str(pick(azioni))]})
+		else:
+			ev.append({"mi": R(5, 88), "t": "n", "x": "%s calcia da fuori: %s." % [str(pick(comp)), str(pick(esiti))]})
+	if tit:
+		var fe: float = 1.0
+		if int(G.eta) > 30:
+			fe = 1.35
+		var fr: float = 1.0
+		if f == "rip":
+			fr = 0.7
+		var fd: Array = [0.75, 1.0, 1.22]
+		var pinf: float = 0.018 * (1.0 + float(100 - int(G.energia)) / 47.0) * fe * fr * float(fd[int(G.diff)])
+		if randf() < pinf:
+			if randf() < 0.11:
+				G.inf = R(8, 24)
+				G.inf_nome = str(pick(["rottura del crociato", "frattura al perone", "lesione al tendine"]))
+				if randf() < 0.35:
+					G.a.fis = maxi(1, int(G.a.fis) - 1)
+			else:
+				G.inf = R(1, 5)
+				G.inf_nome = str(pick(["stiramento", "distorsione alla caviglia", "contusione"]))
+			ev.append({"mi": R(60, 88), "t": "inj", "x": "Ti fai male: %s. Esci dal campo, stop di %d settimane." % [G.inf_nome, G.inf]})
+	ev.append({"mi": 90, "t": "n", "x": "Fischio finale."})
+	ev.sort_custom(_ord_ev)
+	return {"opn": avv[0], "opl": opp, "gf": gf, "ga": ga, "tit": tit, "g": g, "ass": ass, "ev": ev, "sr": {},
+		"hits": 0, "nsh": nsh, "perf": perf, "noise": randf_range(-0.65, 0.75), "i": 1, "done": false, "rt": 0.0,
+		"fg": 0, "fgf": 0, "res": "n", "vel": 1.0, "casa": casa, "giro": giro}
+
+
+func punteggio(k: int) -> Array:
+	var m: Dictionary = G.pm
+	var a: int = 0
+	var b: int = 0
+	for j in k:
+		var e: Dictionary = m.ev[j]
+		if e.t == "tg":
+			a += 1
+		if e.t == "og":
+			b += 1
+		if e.get("sh", false) and m.sr.get(e.id, false):
+			a += 1
+	return [a, b]
+
+
+func imposta_tiro(e: Dictionary, hit: bool, es: String) -> void:
+	var m: Dictionary = G.pm
+	var me: String = cognome()
+	m.sr[e.id] = hit
+	if hit:
+		m.hits += 1
+		e.t = "me"
+		e.x = "GOL! %s (%d) la mette dentro!" % [me, G.num]
+	else:
+		e.t = "n"
+		if es == "fuori":
+			e.x = "%s tira fuori: occasione sprecata." % me
+		elif es == "lento":
+			e.x = "%s esita e il portiere del %s chiude lo specchio." % [me, m.opn]
+		else:
+			e.x = "Gran parata del portiere del %s su %s!" % [m.opn, me]
+
+
+func opinioni(m: Dictionary) -> Array:
+	var mate: String = str(pick(G.compagni))
+	if not m.tit:
+		return ["Mister: \"Oggi non è servito il tuo contributo, tieniti pronto.\""]
+	if float(m.rt) >= 8.0:
+		return [mate + ": \"Con te in campo è un'altra squadra!\"", "Mister: \"Prestazione da leader, continua così.\"", "Tifosi: ti acclamano a fine gara."]
+	if float(m.rt) >= 6.5:
+		return [mate + ": \"Bella partita, ci sei stato.\"", "Mister: \"Partita solida.\""]
+	if float(m.rt) >= 5.5:
+		return [mate + ": \"Si può fare di più, ma ci siamo.\"", "Mister: \"Devi alzare il livello.\""]
+	return [mate + ": \"Giornata storta, capita.\"", "Mister: \"Serve più attenzione.\"", "Tifosi: qualche fischio dagli spalti."]
+
+
+func chiudi_partita(m: Dictionary) -> void:
+	if m.done:
+		return
+	m.done = true
+	var g: int = int(m.hits)
+	var gf: int = int(m.gf) - int(m.g) + g
+	var ga: int = int(m.ga)
+	var res: String = "n"
+	if gf > ga:
+		res = "v"
+	elif gf < ga:
+		res = "p"
+	m.res = res
+	m.fg = g
+	m.fgf = gf
+	G.st[res] += 1
+	registra_nostra(int(m.giro), bool(m.casa), str(m.opn), gf, ga)
+	var rt: float = 0.0
+	if m.tit:
+		var dif: float = 0.0
+		if G.ruolo == "Difensore" or G.ruolo == "Portiere":
+			if ga > 0:
+				dif = -float(ga) * 0.22
+			else:
+				dif = 0.65
+		var es: float = 0.0
+		if res == "v":
+			es = 0.45
+		elif res == "p":
+			es = -0.35
+		var mancati: int = int(m.nsh) - g
+		rt = clampf(6.15 + (float(m.perf) - float(G.sq.l)) / 13.0 + float(g) * 0.9 + float(m.ass) * 0.5 + es + dif - float(mancati) * 0.09 + float(m.noise), 3.5, 10.0)
+		G.st.pres += 1
+		G.st.gol += g
+		G.st.ass += int(m.ass)
+		G.st.voto += rt
+		G.forma = float(G.forma) * 0.72 + rt * 10.0 * 0.28
+		G.energia -= 7
+		if res == "v":
+			G.morale += 3
+		elif res == "p":
+			G.morale -= 2
+		G.mister += (rt - 6.0) * 1.35
+	else:
+		G.morale -= 2
+		G.mister -= 1
+		G.energia -= 2
+	m.rt = rt
+	correggi()
+	var tags: Dictionary = {"v": "V", "n": "N", "p": "P"}
+	var tag: String = tags[res]
+	var txt: String = "Giornata %d: %s %d-%d %s (%s)." % [int(m.giro) + 1, G.sq.n, gf, ga, m.opn, tag]
+	if m.tit:
+		txt += " Voto %.1f." % rt
+	else:
+		txt += " In panchina."
+	log_add(txt)
+
+
+# ================= SCHERMATA PARTITA =================
+func _vel1() -> void:
+	if G.pm != null:
+		G.pm["vel"] = 1.0
+
+
+func _vel2() -> void:
+	if G.pm != null:
+		G.pm["vel"] = 2.0
+
+
+func _salta() -> void:
+	if G.pm != null:
+		G.pm["salta"] = true
+
+
+func _continua() -> void:
+	avanti.emit()
+
+
+func dove_palla(e: Dictionary) -> Vector2:
+	var t: String = e.t
+	if e.get("sh", false):
+		return Vector2(0.5, 0.18)
+	if t == "tg":
+		return Vector2(randf_range(0.35, 0.65), 0.07)
+	if t == "og":
+		return Vector2(randf_range(0.35, 0.65), 0.93)
+	if t == "me":
+		return Vector2(randf_range(0.3, 0.7), randf_range(0.2, 0.4))
+	return Vector2(randf_range(0.2, 0.8), randf_range(0.3, 0.7))
+
+
+func aggiungi_riga(e: Dictionary, anima: bool) -> void:
+	if not is_instance_valid(mp_tick):
+		return
+	var tipo: String = e.t
+	var p: PanelContainer = PanelContainer.new()
+	p.add_theme_stylebox_override("panel", stile(Color(0, 0, 0, 0.28), Color(1, 1, 1, 0.07), 10, 1, 8))
+	var h: HBoxContainer = HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	p.add_child(h)
+	var ic: IconaEv = IconaEv.new()
+	var tipo_ic: String = "n"
+	if tipo == "tg":
+		tipo_ic = "gol"
+	elif tipo == "me":
+		tipo_ic = "me"
+	elif tipo == "og":
+		tipo_ic = "og"
+	elif tipo == "inj":
+		tipo_ic = "inj"
+	ic.tipo = tipo_ic
+	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(ic)
+	var mi: Label = Label.new()
+	mi.text = "%d'" % e.mi
+	mi.custom_minimum_size = Vector2(46, 0)
+	mi.add_theme_font_size_override("font_size", 19)
+	mi.add_theme_font_override("font", _fb)
+	mi.add_theme_color_override("font_color", ORO)
+	h.add_child(mi)
+	var tx: Label = Label.new()
+	tx.text = str(e.x)
+	tx.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tx.add_theme_font_size_override("font_size", 18)
+	var colt: Color = TESTO
+	if tipo == "og" or tipo == "inj":
+		colt = ROSSO
+	elif tipo == "me":
+		colt = ORO
+	elif tipo == "tg":
+		colt = VERDE
+	tx.add_theme_color_override("font_color", colt)
+	h.add_child(tx)
+	mp_tick.add_child(p)
+	mp_tick.move_child(p, 0)
+	while mp_tick.get_child_count() > 8:
+		var vecchio: Node = mp_tick.get_child(mp_tick.get_child_count() - 1)
+		mp_tick.remove_child(vecchio)
+		vecchio.queue_free()
+	if anima:
+		p.modulate.a = 0.0
+		var tw: Tween = create_tween()
+		tw.tween_property(p, "modulate:a", 1.0, 0.3)
+
+
+func aggiorna_tabellone(subito: bool) -> void:
+	if not is_instance_valid(mp_a):
+		return
+	var m: Dictionary = G.pm
+	var k: int = int(m.i)
+	var p: Array = punteggio(k)
+	mp_a.text = str(p[0])
+	mp_b.text = str(p[1])
+	var e: Dictionary = m.ev[k - 1]
+	mp_min.text = "%d'" % e.mi
+	mp_prog.value = int(e.mi)
+	if k >= m.ev.size():
+		mp_fase.text = "Fine partita"
+	elif int(e.mi) <= 45:
+		mp_fase.text = "Primo tempo"
+	else:
+		mp_fase.text = "Secondo tempo"
+	if subito:
+		mp_campo.palla_subito(dove_palla(e))
+	else:
+		mp_campo.palla_verso(dove_palla(e))
+
+
+func aggiorna_partita() -> void:
+	var m: Dictionary = G.pm
+	aggiorna_tabellone(false)
+	var e: Dictionary = m.ev[int(m.i) - 1]
+	aggiungi_riga(e, true)
+	if e.t == "tg":
+		suono("gol")
+	elif e.t == "og":
+		suono("folla")
+
+
+func costruisci_partita(fine: bool = false) -> void:
+	var m: Dictionary = G.pm
+	svuota()
+	var tab: Card = Card.new()
+	tab.accent = ORO
+	tab.set_m(18)
+	tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(tab)
+	var tv: VBoxContainer = VBoxContainer.new()
+	tv.add_theme_constant_override("separation", 8)
+	tab.add_child(tv)
+	var r: HBoxContainer = HBoxContainer.new()
+	tv.add_child(r)
+	var sx: VBoxContainer = VBoxContainer.new()
+	sx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.add_child(sx)
+	centrato(crest(str(G.sq.n), 50, 58), sx)
+	centra(lab(str(G.sq.n), 20, GRIGIO, sx, false))
+	mp_a = lab("0", 80, TESTO, sx, false)
+	centra(mp_a)
+	var md: VBoxContainer = VBoxContainer.new()
+	md.custom_minimum_size = Vector2(190, 0)
+	md.alignment = BoxContainer.ALIGNMENT_CENTER
+	r.add_child(md)
+	mp_min = lab("1'", 44, ORO, md, false)
+	centra(mp_min)
+	mp_fase = lab("Primo tempo", 17, GRIGIO, md, false)
+	centra(mp_fase)
+	var dx: VBoxContainer = VBoxContainer.new()
+	dx.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.add_child(dx)
+	centrato(crest(str(m.opn), 50, 58), dx)
+	centra(lab(str(m.opn), 20, GRIGIO, dx, false))
+	mp_b = lab("0", 80, TESTO, dx, false)
+	centra(mp_b)
+	mp_prog = ProgressBar.new()
+	mp_prog.max_value = 90
+	mp_prog.show_percentage = false
+	mp_prog.custom_minimum_size = Vector2(0, 10)
+	mp_prog.add_theme_stylebox_override("background", stile(Color(0, 0, 0, 0.4), Color(1, 1, 1, 0.06), 5, 1, 0))
+	mp_prog.add_theme_stylebox_override("fill", stile(ORO, ORO.lightened(0.3), 5, 1, 0))
+	tv.add_child(mp_prog)
+	var luogo: String = "in trasferta"
+	if m.casa:
+		luogo = "in casa"
+	centra(lab("%s  -  Giornata %d di %d  -  %s" % [nome_lega_corr(), int(m.giro) + 1, ngiorn(), luogo], 15, GRIGIO, tv, false))
+
+	var corpo: HBoxContainer = HBoxContainer.new()
+	corpo.add_theme_constant_override("separation", 14)
+	box.add_child(corpo)
+	var cc: VBoxContainer = scheda(BORDO, corpo)
+	intest("Cronaca", cc)
+	mp_tick = VBoxContainer.new()
+	mp_tick.add_theme_constant_override("separation", 6)
+	mp_tick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cc.add_child(mp_tick)
+	var cp: VBoxContainer = scheda(BORDO, corpo)
+	var pp: Control = cp.get_parent() as Control
+	pp.size_flags_horizontal = Control.SIZE_FILL
+	pp.custom_minimum_size = Vector2(340, 0)
+	intest("Il campo", cp)
+	mp_campo = CampoPartita.new()
+	mp_campo.num = str(G.num)
+	for p in POS:
+		if p[0] == G.pos:
+			mp_campo.io = Vector2(float(p[2]), float(p[3]))
+	cp.add_child(mp_campo)
+	lab("Il cerchio dorato sei tu.", 14, GRIGIO, cp)
+
+	if not fine:
+		var cr: HBoxContainer = HBoxContainer.new()
+		cr.add_theme_constant_override("separation", 10)
+		box.add_child(cr)
+		bott("Velocità x1", _vel1, cr)
+		bott("Velocità x2", _vel2, cr)
+		bott("Salta alla fine", _salta, cr)
+	aggiorna_tabellone(true)
+	var da: int = maxi(0, int(m.i) - 8)
+	for j in range(da, int(m.i)):
+		aggiungi_riga(m.ev[j], false)
+
+
+func report_partita() -> void:
+	var m: Dictionary = G.pm
+	var r: VBoxContainer = scheda(ORO)
+	var esito_txt: String = "Pareggio"
+	if m.res == "v":
+		esito_txt = "Vittoria"
+	elif m.res == "p":
+		esito_txt = "Sconfitta"
+	intest("%s per %d-%d contro %s" % [esito_txt, m.fgf, m.ga, m.opn], r, 26)
+	var rh: HBoxContainer = HBoxContainer.new()
+	rh.add_theme_constant_override("separation", 24)
+	r.add_child(rh)
+	if m.tit:
+		var rc: Color = ORO
+		if float(m.rt) >= 7.0:
+			rc = VERDE
+		elif float(m.rt) < 5.5:
+			rc = ROSSO
+		var dg: DonutView = DonutView.new()
+		dg.parti = [[float(m.rt), rc], [10.0 - float(m.rt), Color(1, 1, 1, 0.08)]]
+		dg.centro = "%.1f" % float(m.rt)
+		dg.sub = "il tuo voto"
+		dg.custom_minimum_size = Vector2(170, 170)
+		rh.add_child(dg)
+	var rv: VBoxContainer = VBoxContainer.new()
+	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rv.alignment = BoxContainer.ALIGNMENT_CENTER
+	rv.add_theme_constant_override("separation", 6)
+	rh.add_child(rv)
+	if m.tit:
+		var s1: String = "Nessun gol"
+		if int(m.fg) > 0:
+			s1 = "%d gol" % m.fg
+		if int(m.nsh) > 0:
+			s1 += " su %d tiri" % m.nsh
+		if int(m.ass) > 0:
+			s1 += ", %d assist" % m.ass
+		lab(s1 + ".", 20, TESTO, rv)
+	else:
+		lab("Hai guardato la partita dalla panchina.", 20, TESTO, rv)
+	lab("Cosa dicono di te", 17, GRIGIO, rv)
+	for o in opinioni(m):
+		lab(str(o), 17, TESTO, rv)
+	var cc: VBoxContainer = scheda(BORDO)
+	intest("Classifica dopo la giornata %d" % (int(m.giro) + 1), cc)
+	classifica_ui(cc, true)
+	var b: Button = bott("Continua", _continua, null, true)
+	b.custom_minimum_size = Vector2(0, 56)
+
+
+func tabellone_fisso(k: int) -> void:
+	var m: Dictionary = G.pm
+	var p: Array = punteggio(k)
+	var c: Card = Card.new()
+	c.accent = ORO
+	c.set_m(14)
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(c)
+	var r: HBoxContainer = HBoxContainer.new()
+	c.add_child(r)
+	centra(lab("%s   %d" % [G.sq.n, p[0]], 34, TESTO, r, false))
+	centra(lab("%d'" % m.ev[k - 1].mi, 30, ORO, r, false))
+	centra(lab("%d   %s" % [p[1], m.opn], 34, TESTO, r, false))
+
+
+func tiro(e: Dictionary) -> void:
+	var m: Dictionary = G.pm
+	svuota()
+	tabellone_fisso(int(m.i))
+	var c: VBoxContainer = scheda(ORO)
+	lab(str(e.x), 26, ORO, c)
+	lab("Tocca il cerchio verde dentro la porta: hai 4 secondi e mezzo. Più sei tecnico, più il cerchio è grande.", 16, GRIGIO, c)
+	var porta: PortaView = PortaView.new()
+	porta.raggio = clampf(16.0 + float(int(G.a.tec) - 50) / 5.5 - float(int(m.opl) - 60) / 13.0, 11.0, 28.0)
+	porta.velocita = 0.9 + float(G.diff) * 0.22
+	porta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	c.add_child(porta)
+	var esito: String = await porta.finito
+	if esito == "gol":
+		suono("gol")
+	else:
+		suono("calcio")
+	await get_tree().create_timer(1.5).timeout
+	imposta_tiro(e, esito == "gol", esito)
+
+
+func partita() -> void:
+	var m: Dictionary = G.pm
+	m["i"] = 1
+	suono("fischio")
+	costruisci_partita()
+	while int(m.i) < m.ev.size():
+		await get_tree().create_timer(1.3 / float(m.vel)).timeout
+		if m.get("salta", false):
+			break
+		m.i += 1
+		var e: Dictionary = m.ev[int(m.i) - 1]
+		aggiorna_partita()
+		if e.get("sh", false) and not m.sr.has(e.id):
+			await get_tree().create_timer(1.0).timeout
+			if m.get("salta", false):
+				break
+			await tiro(e)
+			costruisci_partita()
+	for e2 in m.ev:
+		if e2.get("sh", false) and not m.sr.has(e2.id):
+			var pa: float = clampf(0.35 + float(ovr()) / 190.0 - float(int(m.opl) - 60) / 210.0, 0.27, 0.82)
+			imposta_tiro(e2, randf() < pa, "para")
+	m.i = m.ev.size()
+	chiudi_partita(m)
+	costruisci_partita(true)
+	suono("fischio_f")
+	report_partita()
+	await avanti
+
+
+# ================= PREMIAZIONE =================
+func cerimonia(nome: String, ind: bool) -> void:
+	svuota()
+	var tipo: String = "Trofeo di squadra"
+	if ind:
+		tipo = "Premio individuale"
+	var c: VBoxContainer = scheda(ORO)
+	var v: CerimoniaView = CerimoniaView.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	c.add_child(v)
+	v.configura(G.av, kit_di(str(G.sq.n)), str(G.num), nome, "%s  -  %s  -  stagione %d" % [tipo, G.nome, G.stagione], forma_trofeo(nome))
+	v.scatto.connect(_snd_scatto)
+	v.alzata.connect(_snd_alzata)
+	suono("fanfara")
+	var b: Button = bott("Continua", _continua, null, true)
+	b.custom_minimum_size = Vector2(0, 56)
+	await avanti
+
+
+# ================= FINE STAGIONE =================
+func sviluppa() -> Dictionary:
+	var ch: Dictionary = {}
+	var eta: int = int(G.eta)
+	for k in ATTR:
+		var b: float = -2.2
+		if eta <= 21:
+			b = 2.9
+		elif eta <= 24:
+			b = 1.8
+		elif eta <= 28:
+			b = 0.6
+		elif eta <= 31:
+			b = -0.3
+		elif eta <= 34:
+			b = -1.2
+		if eta > 30 and (k == "fis" or k == "vel"):
+			b -= 0.7
+		if eta > 30 and (k == "tec" or k == "men"):
+			b += 0.5
+		var d: float = b + float(G.alle[k]) * 0.08 + randf_range(-0.7, 0.85)
+		if d > 0.0:
+			var mult: Array = [1.25, 1.1, 0.95]
+			d *= float(mult[int(G.diff)])
+		var nv: int = clampi(int(roundf(float(G.a[k]) + d)), 20, 97)
+		ch[k] = nv - int(G.a[k])
+		G.a[k] = nv
+	return ch
+
+
+func crea_offerta(tipo: String, nome: String, anni: int) -> Dictionary:
+	var l: int = liv(nome)
+	var pr: String = promessa_per(l)
+	var st: int = int(float(stipendio_per(l, pr)) * ric_club(nome))
+	if tipo == "prestito":
+		st = int(float(st) * 0.5)
+	if tipo == "resta_giov":
+		st = int(float(st) * 0.4)
+	return {"tipo": tipo, "n": nome, "l": l, "pr": pr, "anni": anni, "stip": maxi(8, st), "info": info_club(nome)}
+
+
+func candidati_mercato(tg: float, escl: Array, max_diff: float) -> Array:
+	var r: Array = []
+	for nome in G.club:
+		if escl.has(nome):
+			continue
+		var c: Dictionary = G.club[nome]
+		if int(G.lege[str(c.lg)].t) == 0:
+			continue
+		if absf(float(c.l) - tg) <= max_diff:
+			r.append(nome)
+	r.shuffle()
+	return r
+
+
+func candidati_prestito(o: int, owner_l: int, escl: Array) -> Array:
+	var r: Array = []
+	for nome in G.club:
+		if escl.has(nome):
+			continue
+		var c: Dictionary = G.club[nome]
+		if int(G.lege[str(c.lg)].t) == 0:
+			continue
+		var l: int = int(c.l)
+		if l >= o - 9 and l <= o + 3 and l < owner_l:
+			r.append(nome)
+	r.shuffle()
+	return r
+
+
+func genera_offerte(av: float, pres: int, scad: bool) -> Array:
+	var off: Array = []
+	var escl: Array = [str(G.sq.n)]
+	var o: int = ovr()
+	var eta_n: int = int(G.eta) + 1
+	var giov: bool = giov_lega()
+	var madre: String = str(G.madre)
+	if madre != "":
+		escl.append(madre)
+		if giov:
+			if o >= liv(madre) - 16 or eta_n >= 19:
+				off.append(crea_offerta("promozione", madre, R(2, 3)))
+			if eta_n <= 19:
+				off.append(crea_offerta("resta_giov", str(G.sq.n), 1))
+		else:
+			off.append(crea_offerta("ritorno", madre, R(1, 3)))
+			if av >= 6.7 and pres >= 10:
+				off.append(crea_offerta("riscatto", str(G.sq.n), R(2, 4)))
+		if eta_n <= 24:
+			var cp: Array = candidati_prestito(o, liv(madre), escl)
+			for i in mini(2, cp.size()):
+				off.append(crea_offerta("prestito", str(cp[i]), 1))
+				escl.append(str(cp[i]))
+	else:
+		if scad:
+			off.append(crea_offerta("rinnovo", str(G.sq.n), R(1, 4)))
+		var nm: int = 0
+		if av >= 7.0:
+			nm = R(2, 3)
+		elif av >= 6.4:
+			nm = R(1, 2)
+		else:
+			nm = R(0, 2)
+		var tg: float = float(o) - 0.5 + (av - 6.5) * 5.5 + randf_range(-3.0, 3.0)
+		var cm: Array = candidati_mercato(tg, escl, 6.5)
+		var presi: int = 0
+		for x in cm:
+			if presi >= nm:
+				break
+			off.append(crea_offerta("nuova", str(x), R(1, 4)))
+			escl.append(str(x))
+			presi += 1
+		if eta_n <= 23 and o < liv(str(G.sq.n)) - 4:
+			var cp2: Array = candidati_prestito(o, liv(str(G.sq.n)), escl)
+			for i in mini(2, cp2.size()):
+				off.append(crea_offerta("prestito", str(cp2[i]), 1))
+	return off
+
+
+func scheda_offerta(o: Dictionary, i: int) -> void:
+	var c: VBoxContainer = scheda(ORO)
+	var rh: HBoxContainer = HBoxContainer.new()
+	rh.add_theme_constant_override("separation", 16)
+	c.add_child(rh)
+	rh.add_child(maglia(str(o.n), 84))
+	var rv: VBoxContainer = VBoxContainer.new()
+	rv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rv.add_theme_constant_override("separation", 2)
+	rh.add_child(rv)
+	lab(str(TIPI_OFF.get(str(o.tipo), "Proposta")), 14, GRIGIO, rv, false)
+	lab(str(o.n), 26, ORO, rv, false)
+	lab(str(o.info), 15, GRIGIO, rv, false)
+	var r: HBoxContainer = HBoxContainer.new()
+	c.add_child(r)
+	var durata: String = "%d anni" % o.anni
+	if int(o.anni) == 1:
+		durata = "1 anno"
+	for kv in [["Stipendio", eur(int(o.stip))], ["Durata", durata], ["Ruolo", str(o.pr)]]:
+		var v: VBoxContainer = VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		r.add_child(v)
+		lab(str(kv[0]), 14, GRIGIO, v)
+		lab(str(kv[1]), 19, TESTO, v)
+	lab("%s Livello della squadra: %d." % [PROM_TXT[o.pr], o.l], 16, GRIGIO, c)
+	if str(o.tipo) == "prestito":
+		lab("Dopo il prestito tornerai al club che ti possiede.", 15, ORO, c)
+	bott("Accetta", prosegui.bind(i), c, true)
+
+
+func fine_stagione() -> void:
+	var t: Dictionary = G.st
+	var pres: int = int(t.pres)
+	var av: float = 0.0
+	if pres > 0:
+		av = float(t.voto) / float(pres)
+	var righe: Array = classifica()
+	var pos: int = pos_nostra(righe)
+	var mio: Dictionary = righe[pos - 1]
+	var lg: Dictionary = G.lege[G.lega]
+	var nlega: String = str(lg.nome)
+	var tier: int = int(lg.t)
+	var nt: int = n_tiers(str(lg.paese))
+	var nn_c: int = righe.size()
+	var msp: int = n_sposta(nn_c)
+	var promossa: bool = tier >= 2 and pos <= msp
+	var retro: bool = tier >= 1 and tier < nt and pos > nn_c - msp
+	G.car.pres += pres
+	G.car.gol += int(t.gol)
+	G.car.ass += int(t.ass)
+	var o0: int = ovr()
+	var prem: Array = []
+	if pos == 1:
+		prem.append(["Campionato: %s, con %s" % [nlega, G.sq.n], false])
+		G.car.titoli += 1
+	if tier >= 1 and randf() < clampf(float(int(G.sq.l) - int(lg.base) + 7) / 58.0, 0.025, 0.48):
+		prem.append(["Coppa Nazionale con " + str(G.sq.n), false])
+	if tier == 1 and pos <= 4 and randf() < 0.27:
+		prem.append(["Coppa Continentale con " + str(G.sq.n), false])
+	var nota_naz: String = ""
+	if int(G.stagione) % 4 == 0 and int(G.rep) >= 38:
+		nota_naz = "Sei stato convocato per la Coppa delle Nazioni."
+		if randf() < clampf((float(o0) - 58.0) / 75.0, 0.035, 0.37):
+			prem.append(["Coppa delle Nazioni con la Nazionale", false])
+			nota_naz = "Con la Nazionale hai vinto la Coppa delle Nazioni!"
+	var soglia_gol: int = 11
+	if G.ruolo == "Attaccante":
+		soglia_gol = 17
+	if tier >= 1 and tier <= 2 and pres >= 19 and int(t.gol) >= soglia_gol:
+		prem.append(["Scarpa d'Oro (capocannoniere)", true])
+	if tier >= 1 and tier <= 2 and pres >= 24 and av >= 7.4:
+		prem.append(["Miglior giocatore del campionato", true])
+	if G.ruolo == "Portiere" and tier >= 1 and tier <= 2 and pres >= 24 and av >= 7.2:
+		prem.append(["Guanto d'Oro", true])
+	if tier == 1 and pres >= 27 and av >= 7.65 and o0 >= 82 and int(G.rep) >= 65 and pos <= 4 and randf() < 0.72:
+		prem.append(["Sfera d'Oro", true])
+	if pres > 10:
+		G.rep += (av - 6.4) * 4.5
+	else:
+		G.rep -= 1
+	if pos == 1:
+		G.rep += 5
+	if retro:
+		G.rep -= 2
+		G.morale -= 5
+		G.mister -= 3
+	if promossa:
+		G.rep += 4
+		G.morale += 6
+	for p in prem:
+		G.trofei.append({"anno": G.stagione, "nome": p[0], "ind": p[1]})
+		if p[1]:
+			G.rep += 5
+	var ob_ok: bool = false
+	var ob_txt: String = ""
+	if G.has("obj") and G.obj.size() > 0:
+		var ob: Dictionary = G.obj
+		var tp: String = str(ob.tipo)
+		if tp == "pres":
+			ob_ok = pres >= int(ob.val)
+		elif tp == "voto":
+			ob_ok = pres >= 10 and av >= float(ob.val)
+		else:
+			ob_ok = int(t.gol) + int(t.ass) >= int(ob.val)
+		ob_txt = str(ob.txt)
+		if ob_ok:
+			G.rep += 4
+			G.mister += 7
+			G.morale += 6
+		else:
+			G.mister -= 2
+			G.morale -= 2
+	correggi()
+	G.storico.append({"s": G.stagione, "sq": G.sq.n, "t": tier, "pres": pres, "gol": t.gol, "ass": t.ass, "voto": av, "pos": pos})
+	for p2 in prem:
+		await cerimonia(str(p2[0]), bool(p2[1]))
+	var ch: Dictionary = sviluppa()
+	G.anni -= 1
+	var scad: bool = int(G.anni) <= 0
+	var offerte: Array = genera_offerte(av, pres, scad)
+	var obbligo: bool = scad or str(G.madre) != ""
+	if offerte.size() == 0 and obbligo:
+		offerte.append(crea_offerta("rinnovo", str(G.sq.n), R(1, 3)))
+	G.sum = {"offerte": offerte}
+	G.eta += 1
+
+	svuota()
+	banner("Fine stagione %d" % G.stagione, "%s  -  %s  -  %d anni" % [G.sq.n, nlega, G.eta])
+	var c: VBoxContainer = scheda(BORDO)
+	intest("Bilancio", c, 24)
+	var voto_txt: String = "-"
+	if pres > 0:
+		voto_txt = "%.1f" % av
+	var rch: HBoxContainer = HBoxContainer.new()
+	rch.add_theme_constant_override("separation", 10)
+	c.add_child(rch)
+	chip(rch, "PRESENZE", str(pres), TESTO)
+	chip(rch, "GOL", str(t.gol), VERDE)
+	chip(rch, "ASSIST", str(t.ass), Color("5aa9ff"))
+	chip(rch, "VOTO MEDIO", voto_txt, ORO)
+	chip(rch, "POSIZIONE", "%d°" % pos, ORO)
+	chip(rch, "PUNTI", str(mio.pt), VERDE)
+	if pos == 1:
+		lab("La tua squadra vince il campionato.", 19, VERDE, c)
+	if promossa:
+		lab("PROMOZIONE! La squadra sale nella divisione superiore.", 20, VERDE, c)
+	if retro:
+		lab("RETROCESSIONE: la squadra scende nella divisione inferiore.", 19, ROSSO, c)
+	if nota_naz != "":
+		lab(nota_naz, 17, ORO, c)
+	if ob_txt != "":
+		var cob: VBoxContainer = scheda(BORDO)
+		intest("Obiettivo della stagione", cob, 24)
+		lab(ob_txt, 18, TESTO, cob)
+		if ob_ok:
+			lab("Obiettivo raggiunto! Il club è soddisfatto.", 19, VERDE, cob)
+		else:
+			lab("Obiettivo mancato: il club si aspettava di più.", 19, ROSSO, cob)
+	var c2: VBoxContainer = scheda(BORDO)
+	intest("Come sei cambiato", c2, 24)
+	var rc2: HBoxContainer = HBoxContainer.new()
+	rc2.add_theme_constant_override("separation", 10)
+	c2.add_child(rc2)
+	for k in ATTR:
+		var col_d: Color = GRIGIO
+		if int(ch[k]) > 0:
+			col_d = VERDE
+		elif int(ch[k]) < 0:
+			col_d = ROSSO
+		chip(rc2, str(ATTR[k]).to_upper(), "%d  (%+d)" % [G.a[k], ch[k]], col_d)
+	lab("Valutazione generale: %d" % ovr(), 18, GRIGIO, c2)
+	if prem.size() > 0:
+		var c3: VBoxContainer = scheda(ORO)
+		intest("Trofei e premi di questa stagione", c3, 24)
+		for p in prem:
+			lab(str(p[0]), 20, TESTO, c3)
+	var c4: VBoxContainer = scheda(BORDO)
+	intest("Classifica finale: " + nlega, c4, 24)
+	classifica_ui(c4, false)
+	legenda_ui(c4)
+	var forzato: bool = int(G.eta) >= 40 or ovr() <= 42
+	if forzato:
+		bott("Chiudi la carriera", prosegui.bind(-1), null, true)
+	else:
+		if scad:
+			lab("Contratto in scadenza: scegli il tuo prossimo passo", 26, ORO)
+		elif str(G.madre) != "":
+			lab("Cosa farai la prossima stagione?", 26, ORO)
+		elif offerte.size() > 0:
+			lab("Hai ricevuto delle proposte", 26, ORO)
+		for i in offerte.size():
+			scheda_offerta(offerte[i], i)
+		var r: HFlowContainer = HFlowContainer.new()
+		r.add_theme_constant_override("h_separation", 10)
+		box.add_child(r)
+		if not obbligo:
+			bott("Resta dove sei", prosegui.bind(-1), r, true)
+		if int(G.eta) >= 35:
+			bott("Ritirati dal calcio", ritiro, r)
+
+
+# ================= CHIUSURA DELLA STAGIONE NEL MONDO =================
+func _ord_sc(a: Dictionary, b: Dictionary) -> bool:
+	return float(a.sc) > float(b.sc)
+
+
+func rank_lega(key: String) -> Array:
+	var res: Array = []
+	if key == G.lega:
+		for r in classifica():
+			res.append(r.sq)
+		return res
+	var arr: Array = []
+	for nome in G.lege[key].cl:
+		arr.append({"sq": nome, "sc": float(liv(str(nome))) + randf_range(-8.0, 8.0)})
+	arr.sort_custom(_ord_sc)
+	for a in arr:
+		res.append(a.sq)
+	return res
+
+
+func sposta(nome: String, da: String, a: String) -> void:
+	var la: Array = G.lege[da].cl
+	la.erase(nome)
+	G.lege[a].cl.append(nome)
+	G.club[nome].lg = a
+
+
+func chiudi_mondo() -> void:
+	var ranks: Dictionary = {}
+	for key in G.lege:
+		ranks[key] = rank_lega(str(key))
+	var mosso: Dictionary = {}
+	var albo: Dictionary = {}
+	for key in ranks:
+		albo[key] = {"cam": ranks[key][0], "su": [], "giu": []}
+	for p in PAESI:
+		var nt: int = p.div.size()
+		for t in range(1, nt):
+			var kdn: String = "%s%d" % [p.id, t]
+			var kup: String = "%s%d" % [p.id, t + 1]
+			var m: int = n_sposta(ranks[kdn].size())
+			var su: Array = ranks[kup].slice(0, m)
+			var giu: Array = ranks[kdn].slice(ranks[kdn].size() - m)
+			for nm in su:
+				sposta(str(nm), kup, kdn)
+				mosso[nm] = 1
+				albo[kup]["su"].append(nm)
+			for nm in giu:
+				sposta(str(nm), kdn, kup)
+				mosso[nm] = -1
+				albo[kdn]["giu"].append(nm)
+	for key in ranks:
+		var arr: Array = ranks[key]
+		var n: int = arr.size()
+		for i in n:
+			var nome: String = str(arr[i])
+			if G.club[nome].has("m"):
+				continue
+			var cur: int = int(G.club[nome].l)
+			var base: float = float(G.lege[str(G.club[nome].lg)].base)
+			var delta: float = 1.2 - 2.4 * float(i) / float(maxi(1, n - 1))
+			if mosso.has(nome):
+				delta += 2.0 * float(mosso[nome])
+			var nuovo: float = 0.75 * float(cur) + 0.25 * base + delta + float(R(-1, 1))
+			G.club[nome].l = cl(nuovo, 30, 95)
+	for nome2 in G.club:
+		var c: Dictionary = G.club[nome2]
+		if c.has("m"):
+			c.l = maxi(30, int(G.club[str(c.m)].l) - 24)
+	G.albo = albo
+
+
+func applica_offerta(o: Dictionary) -> void:
+	var tipo: String = str(o.tipo)
+	var nome: String = str(o.n)
+	if tipo == "prestito":
+		if str(G.madre) == "":
+			G.madre = str(G.sq.n)
+		G.sq = {"n": nome, "l": liv(nome)}
+	elif tipo == "ritorno" or tipo == "promozione":
+		G.sq = {"n": nome, "l": liv(nome)}
+		G.madre = ""
+	elif tipo == "riscatto":
+		G.madre = ""
+	elif tipo == "nuova":
+		G.sq = {"n": nome, "l": liv(nome)}
+		G.madre = ""
+	G.stip = o.stip
+	G.anni = o.anni
+	G.pr = o.pr
+
+
+func prosegui(i: int) -> void:
+	chiudi_mondo()
+	var vecchio: String = str(G.sq.n)
+	if i >= 0:
+		applica_offerta(G.sum.offerte[i])
+	G.lega = str(G.club[str(G.sq.n)].lg)
+	G.sq.l = liv(str(G.sq.n))
+	if str(G.sq.n) != vecchio:
+		G.mister = 52
+		G.morale += 6
+	if int(G.eta) >= 40 or ovr() <= 42:
+		ritiro()
+		return
+	G.st = {"pres": 0, "gol": 0, "ass": 0, "voto": 0.0, "v": 0, "n": 0, "p": 0}
+	G.alle = {"tec": 0.0, "fis": 0.0, "vel": 0.0, "men": 0.0}
+	nuova_stagione_lega()
+	G.sett = 1
+	G.stagione += 1
+	G.energia = 100
+	G.forma = 58
+	G.inf = maxi(0, int(G.inf) - 10)
+	G.pr = promessa_per(int(G.sq.l))
+	G.reg = ["Nuova stagione con %s (%s)." % [G.sq.n, nome_lega_corr()]]
+	correggi()
+	nuovo_obiettivo()
+	salva()
+	gioco()
+
+
+# ================= BACHECA, STATISTICHE E RITIRO =================
+func gruppo_trofei(ind: bool) -> Dictionary:
+	var d: Dictionary = {}
+	for t in G.trofei:
+		if t.ind == ind:
+			if not d.has(t.nome):
+				d[t.nome] = []
+			d[t.nome].append(t.anno)
+	return d
+
+
+func trofei_ui() -> void:
+	for ind in [true, false]:
+		var col_b: Color = BORDO
+		var titolo_t: String = "Trofei di squadra"
+		if ind:
+			col_b = ORO
+			titolo_t = "Premi individuali"
+		var c: VBoxContainer = scheda(col_b)
+		intest(titolo_t, c, 24)
+		var d: Dictionary = gruppo_trofei(ind)
+		if d.is_empty():
+			lab("Ancora nessuno: continua a lavorare!", 17, GRIGIO, c)
+			continue
+		var fl: HFlowContainer = HFlowContainer.new()
+		fl.add_theme_constant_override("h_separation", 16)
+		fl.add_theme_constant_override("v_separation", 16)
+		c.add_child(fl)
+		for nome in d:
+			var cv: VBoxContainer = VBoxContainer.new()
+			cv.custom_minimum_size = Vector2(150, 0)
+			cv.add_theme_constant_override("separation", 2)
+			fl.add_child(cv)
+			var ti: TrofeoIcona = TrofeoIcona.new()
+			ti.forma = forma_trofeo(str(nome))
+			ti.conta = d[nome].size()
+			centrato(ti, cv)
+			var nl: Label = lab(str(nome), 15, TESTO, cv)
+			nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			var anni: String = ""
+			for a in d[nome]:
+				anni += "S%d  " % int(a)
+			var al: Label = lab(anni, 13, GRIGIO, cv)
+			al.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
+func bacheca() -> void:
+	svuota()
+	barra_nav("bach")
+	banner("Bacheca dei trofei", "%d trofei e premi in carriera" % G.trofei.size())
+	trofei_ui()
+
+
+func statistiche() -> void:
+	svuota()
+	barra_nav("stat")
+	banner("Statistiche di carriera", "%s  -  %d stagioni" % [G.nome, G.storico.size()])
+	var top: HBoxContainer = HBoxContainer.new()
+	top.add_theme_constant_override("separation", 18)
+	box.add_child(top)
+	var carta: CartaGiocatore = CartaGiocatore.new()
+	carta.imposta(G.av, kit_di(str(G.sq.n)), str(G.nome), str(G.pos), str(G.sq.n), int(G.num), ovr(), G.a)
+	top.add_child(carta)
+	var tv: VBoxContainer = VBoxContainer.new()
+	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tv.add_theme_constant_override("separation", 12)
+	top.add_child(tv)
+	var r1: HBoxContainer = HBoxContainer.new()
+	r1.add_theme_constant_override("separation", 10)
+	tv.add_child(r1)
+	chip(r1, "PRESENZE", str(G.car.pres), TESTO)
+	chip(r1, "GOL", str(G.car.gol), VERDE)
+	chip(r1, "ASSIST", str(G.car.ass), Color("5aa9ff"))
+	var r2: HBoxContainer = HBoxContainer.new()
+	r2.add_theme_constant_override("separation", 10)
+	tv.add_child(r2)
+	chip(r2, "CAMPIONATI", str(G.car.titoli), ORO)
+	chip(r2, "TROFEI E PREMI", str(G.trofei.size()), ORO)
+	chip(r2, "STAGIONI", str(G.storico.size()), TESTO)
+	var cr0: VBoxContainer = scheda(BORDO, tv)
+	intest("Profilo tecnico", cr0)
+	var rad: RadarView = RadarView.new()
+	rad.vals = [G.a.tec, G.a.fis, G.a.vel, G.a.men]
+	centrato(rad, cr0)
+
+	var et: Array = []
+	var gol: Array = []
+	var ass: Array = []
+	var voti: Array = []
+	var posiz: Array = []
+	var mg: int = -1
+	var mg_s: int = 0
+	var mv: float = 0.0
+	var mv_s: int = 0
+	var mp: int = 99
+	var mp_s: int = 0
+	for s in G.storico:
+		et.append("S%d" % s.s)
+		gol.append(int(s.gol))
+		ass.append(int(s.ass))
+		voti.append(snappedf(float(s.voto), 0.1))
+		posiz.append(int(s.pos))
+		if int(s.gol) > mg:
+			mg = int(s.gol)
+			mg_s = int(s.s)
+		if float(s.voto) > mv:
+			mv = float(s.voto)
+			mv_s = int(s.s)
+		if int(s.pos) < mp:
+			mp = int(s.pos)
+			mp_s = int(s.s)
+	if G.storico.size() > 0:
+		var cr: VBoxContainer = scheda(ORO)
+		intest("Record personali", cr, 24)
+		var rr: HBoxContainer = HBoxContainer.new()
+		rr.add_theme_constant_override("separation", 10)
+		cr.add_child(rr)
+		chip(rr, "GOL IN UNA STAGIONE (S%d)" % mg_s, str(mg), VERDE)
+		chip(rr, "MIGLIOR VOTO MEDIO (S%d)" % mv_s, "%.1f" % mv, ORO)
+		chip(rr, "MIGLIOR PIAZZAMENTO (S%d)" % mp_s, "%d°" % mp, ORO)
+	var cg: VBoxContainer = scheda(BORDO)
+	intest("Andamento stagione per stagione", cg, 24)
+	var g1: GraficoView = GraficoView.new()
+	g1.titolo_g = "Gol per stagione"
+	g1.valori = gol
+	g1.etichette = et
+	g1.colore = VERDE
+	cg.add_child(g1)
+	var g2: GraficoView = GraficoView.new()
+	g2.titolo_g = "Assist per stagione"
+	g2.valori = ass
+	g2.etichette = et
+	g2.colore = Color("5aa9ff")
+	cg.add_child(g2)
+	var g3: GraficoView = GraficoView.new()
+	g3.titolo_g = "Voto medio"
+	g3.valori = voti
+	g3.etichette = et
+	g3.colore = ORO
+	g3.linea = true
+	g3.vmin = 5.0
+	g3.vmax = 10.0
+	g3.decimali = 1
+	cg.add_child(g3)
+	var g4: GraficoView = GraficoView.new()
+	g4.titolo_g = "Piazzamento nel proprio campionato (1 = primo)"
+	g4.valori = posiz
+	g4.etichette = et
+	g4.colore = ROSSO
+	g4.linea = true
+	g4.vmin = 1.0
+	g4.vmax = 20.0
+	g4.inverti = true
+	cg.add_child(g4)
+	var c2: VBoxContainer = scheda(BORDO)
+	intest("Percorso stagione per stagione", c2, 24)
+	if G.storico.size() == 0:
+		lab("Nessuna stagione ancora completata.", 17, GRIGIO, c2)
+	else:
+		var gr: GridContainer = GridContainer.new()
+		gr.columns = 9
+		gr.add_theme_constant_override("h_separation", 20)
+		gr.add_theme_constant_override("v_separation", 8)
+		c2.add_child(gr)
+		for h in ["Stag.", "", "Squadra", "Div.", "Pres.", "Gol", "Assist", "Voto", "Pos."]:
+			gr.add_child(cella(h, GRIGIO))
+		for s in G.storico:
+			gr.add_child(cella(str(s.s), TESTO))
+			var mgl: MagliaView = MagliaView.new()
+			mgl.custom_minimum_size = Vector2(24, 24)
+			mgl.kit = kit_di(str(s.sq))
+			gr.add_child(mgl)
+			gr.add_child(cella(str(s.sq), TESTO))
+			gr.add_child(cella(tier_txt(int(s.get("t", 1))), TESTO))
+			gr.add_child(cella(str(s.pres), TESTO))
+			gr.add_child(cella(str(s.gol), TESTO))
+			gr.add_child(cella(str(s.ass), TESTO))
+			gr.add_child(cella("%.1f" % float(s.voto), TESTO))
+			gr.add_child(cella("%d°" % s.pos, TESTO))
+
+
+func ritiro() -> void:
+	cancella_salvataggio()
+	svuota()
+	banner("Carriera conclusa", "%s appende gli scarpini a %d anni dopo %d stagioni" % [G.nome, G.eta, G.stagione])
+	var top: HBoxContainer = HBoxContainer.new()
+	top.add_theme_constant_override("separation", 18)
+	box.add_child(top)
+	var carta: CartaGiocatore = CartaGiocatore.new()
+	carta.imposta(G.av, kit_di(str(G.sq.n)), str(G.nome), str(G.pos), str(G.sq.n), int(G.num), ovr(), G.a)
+	top.add_child(carta)
+	var tv: VBoxContainer = VBoxContainer.new()
+	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tv.add_theme_constant_override("separation", 12)
+	top.add_child(tv)
+	var r1: HBoxContainer = HBoxContainer.new()
+	r1.add_theme_constant_override("separation", 10)
+	tv.add_child(r1)
+	chip(r1, "PRESENZE", str(G.car.pres), TESTO)
+	chip(r1, "GOL", str(G.car.gol), VERDE)
+	chip(r1, "ASSIST", str(G.car.ass), Color("5aa9ff"))
+	chip(r1, "CAMPIONATI", str(G.car.titoli), ORO)
+	trofei_ui()
+	bott("Torna al menu", titolo, null, true)
+
+
+# ================= CLASSI INTERNE: PANNELLI, SFONDO, TITOLO =================
+class Card extends PanelContainer:
+	var accent: Color = Color("3a8f66")
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_PASS
+		set_m(18)
+
+	func set_m(m: int) -> void:
+		var sb: StyleBoxEmpty = StyleBoxEmpty.new()
+		sb.set_content_margin_all(float(m))
+		add_theme_stylebox_override("panel", sb)
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			queue_redraw()
+
+	func rr_pts(x: float, y: float, w: float, h: float, r: float) -> PackedVector2Array:
+		var pts: PackedVector2Array = PackedVector2Array()
+		var corners: Array = [Vector2(x + w - r, y + r), Vector2(x + w - r, y + h - r), Vector2(x + r, y + h - r), Vector2(x + r, y + r)]
+		var starts: Array = [-PI * 0.5, 0.0, PI * 0.5, PI]
+		for k in 4:
+			var c: Vector2 = corners[k]
+			for i in 7:
+				var a: float = float(starts[k]) + (PI * 0.5) * float(i) / 6.0
+				pts.append(c + Vector2(cos(a), sin(a)) * r)
+		return pts
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		if w < 20.0 or h < 20.0:
+			return
+		var r: float = 16.0
+		for k in 3:
+			var g: float = float(3 - k) * 3.0
+			draw_colored_polygon(rr_pts(-g, 4.0 - g, w + 2.0 * g, h + 2.0 * g, r + g), Color(0, 0, 0, 0.10))
+		var pts: PackedVector2Array = rr_pts(0.0, 0.0, w, h, r)
+		var cols: PackedColorArray = PackedColorArray()
+		for p in pts:
+			var f: float = clampf(p.y / maxf(1.0, h), 0.0, 1.0)
+			cols.append(Color("1d4231").lerp(Color("102a1f"), f))
+		draw_polygon(pts, cols)
+		var cl: PackedVector2Array = pts.duplicate()
+		cl.append(pts[0])
+		draw_polyline(cl, Color(accent.r, accent.g, accent.b, 0.55), 1.6)
+		draw_line(Vector2(r, 1.5), Vector2(r + minf(140.0, w * 0.3), 1.5), accent, 3.5)
+		draw_line(Vector2(r, 4.0), Vector2(w - r, 4.0), Color(1, 1, 1, 0.06), 1.0)
+
+
+class BannerView extends Control:
+	var titolo_b: String = ""
+	var sotto_b: String = ""
+	var col: Color = Color("f0c23a")
+	var t: float = 0.0
+	var fb: FontVariation
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0, 104)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		clip_contents = true
+		fb = FontVariation.new()
+		fb.base_font = ThemeDB.fallback_font
+		fb.variation_embolden = 0.8
+
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+
+	func rr_pts(x: float, y: float, w: float, h: float, r: float) -> PackedVector2Array:
+		var pts: PackedVector2Array = PackedVector2Array()
+		var corners: Array = [Vector2(x + w - r, y + r), Vector2(x + w - r, y + h - r), Vector2(x + r, y + h - r), Vector2(x + r, y + r)]
+		var starts: Array = [-PI * 0.5, 0.0, PI * 0.5, PI]
+		for k in 4:
+			var c: Vector2 = corners[k]
+			for i in 7:
+				var a: float = float(starts[k]) + (PI * 0.5) * float(i) / 6.0
+				pts.append(c + Vector2(cos(a), sin(a)) * r)
+		return pts
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		if w < 40.0:
+			return
+		var pts: PackedVector2Array = rr_pts(0.0, 0.0, w, h, 18.0)
+		var cols: PackedColorArray = PackedColorArray()
+		for p in pts:
+			var f: float = clampf(p.x / maxf(1.0, w), 0.0, 1.0)
+			cols.append(Color("1b4a35").lerp(Color("0e261b"), f))
+		draw_polygon(pts, cols)
+		for i in 7:
+			var x0: float = w - 40.0 - 46.0 * float(i)
+			draw_colored_polygon(PackedVector2Array([Vector2(x0, 0), Vector2(x0 + 22.0, 0), Vector2(x0 - 22.0, h), Vector2(x0 - 44.0, h)]), Color(col.r, col.g, col.b, 0.04 + 0.012 * float(i)))
+		var sx: float = fposmod(t * 0.12, 1.6) * w * 1.4 - w * 0.3
+		draw_colored_polygon(PackedVector2Array([Vector2(sx, 0), Vector2(sx + 60.0, 0), Vector2(sx + 20.0, h), Vector2(sx - 40.0, h)]), Color(1, 1, 1, 0.05))
+		draw_rect(Rect2(0, 0, 8, h), col, true)
+		draw_string_outline(fb, Vector2(34, h * 0.60), titolo_b, HORIZONTAL_ALIGNMENT_LEFT, w - 60.0, 44, 8, Color(0.03, 0.09, 0.06, 0.9))
+		draw_string(fb, Vector2(34, h * 0.60), titolo_b, HORIZONTAL_ALIGNMENT_LEFT, w - 60.0, 44, col)
+		if sotto_b != "":
+			draw_string(ThemeDB.fallback_font, Vector2(36, h * 0.60 + 28.0), sotto_b, HORIZONTAL_ALIGNMENT_LEFT, w - 60.0, 17, Color("97ab9d"))
+		var cl: PackedVector2Array = pts.duplicate()
+		cl.append(pts[0])
+		draw_polyline(cl, Color(col.r, col.g, col.b, 0.4), 1.5)
+
+
+class SfondoView extends Control:
+	var t: float = 0.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		var pts: PackedVector2Array = PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)])
+		var cols: PackedColorArray = PackedColorArray([Color("06130e"), Color("06130e"), Color("0f3322"), Color("0f3322")])
+		draw_polygon(pts, cols)
+		var l: Color = Color(1, 1, 1, 0.04)
+		draw_arc(Vector2(w * 0.5, h * 0.5), h * 0.3, 0, TAU, 64, l, 3.0)
+		draw_line(Vector2(w * 0.5, 0), Vector2(w * 0.5, h), l, 3.0)
+		draw_rect(Rect2(w * 0.04, h * 0.08, w * 0.92, h * 0.84), l, false, 3.0)
+		for k in 3:
+			var x0: float = w * (0.15 + 0.35 * float(k)) + sin(t * 0.4 + float(k) * 2.1) * 60.0
+			draw_colored_polygon(PackedVector2Array([Vector2(x0 - 20.0, 0), Vector2(x0 + 20.0, 0), Vector2(x0 + 260.0, h), Vector2(x0 - 260.0, h)]), Color(1, 0.95, 0.75, 0.03))
+		for i in 26:
+			var px: float = w * fposmod(float(i) * 0.137 + 0.02 * sin(t * 0.5 + float(i)), 1.0)
+			var py: float = h * (1.0 - fposmod(float(i) * 0.211 + t * (0.012 + 0.006 * float(i % 4)), 1.0))
+			draw_circle(Vector2(px, py), 1.2 + float(i % 3) * 0.6, Color(1.0, 0.9, 0.55, 0.14))
+		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w * 0.22, 0), Vector2(w * 0.22, h), Vector2(0, h)]), PackedColorArray([Color(0, 0, 0, 0.5), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0.5)]))
+		draw_polygon(PackedVector2Array([Vector2(w * 0.78, 0), Vector2(w, 0), Vector2(w, h), Vector2(w * 0.78, h)]), PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 0.5), Color(0, 0, 0, 0.5), Color(0, 0, 0, 0)]))
+		draw_polygon(PackedVector2Array([Vector2(0, h * 0.82), Vector2(w, h * 0.82), Vector2(w, h), Vector2(0, h)]), PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0.45), Color(0, 0, 0, 0.45)]))
+
+
+class HeroView extends Control:
+	var titolo_h: String = ""
+	var sotto_h: String = ""
+	var t: float = 0.0
+	var fb: FontVariation
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0, 450)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fb = FontVariation.new()
+		fb.base_font = ThemeDB.fallback_font
+		fb.variation_embolden = 0.9
+
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		var font: Font = ThemeDB.fallback_font
+		for side in 2:
+			var px: float = w * (0.10 + 0.80 * float(side))
+			draw_rect(Rect2(px - 4.0, h * 0.28, 8.0, h * 0.6), Color("0b1712"), true)
+			for i in 6:
+				var lx: float = px - 22.0 + 9.0 * float(i % 3) * 1.0
+				var ly: float = h * 0.20 + 12.0 * float(i / 3)
+				draw_circle(Vector2(lx, ly), 5.0, Color(1, 0.96, 0.8, 0.9))
+			var dirx: float = -1.0 + 2.0 * float(1 - side)
+			draw_colored_polygon(PackedVector2Array([Vector2(px - 12.0, h * 0.22), Vector2(px + 12.0, h * 0.22), Vector2(px + dirx * 360.0 + 40.0, h * 0.95), Vector2(px + dirx * 360.0 - 40.0, h * 0.95)]), Color(1, 0.95, 0.75, 0.045))
+		for i in 28:
+			var qx: float = w * fposmod(float(i) * 0.211 + 0.02 * sin(t * 0.6 + float(i)), 1.0)
+			var qy: float = h * (1.0 - fposmod(float(i) * 0.173 + t * (0.02 + 0.01 * float(i % 5)), 1.0))
+			draw_circle(Vector2(qx, qy), 1.2 + float(i % 3), Color(1.0, 0.88, 0.45, 0.22))
+		draw_polygon(PackedVector2Array([Vector2(0, h * 0.86), Vector2(w, h * 0.86), Vector2(w, h), Vector2(0, h)]), PackedColorArray([Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0.55), Color(0, 0, 0, 0.55)]))
+		var c: Vector2 = Vector2(w * 0.5, h * 0.31 + sin(t * 1.8) * 10.0)
+		draw_circle(c, 170.0, Color(0.94, 0.76, 0.23, 0.04))
+		draw_circle(c, 118.0, Color(0.94, 0.76, 0.23, 0.06))
+		var sh: PackedVector2Array = PackedVector2Array()
+		for i in 24:
+			var a: float = TAU * float(i) / 24.0
+			sh.append(Vector2(w * 0.5 + cos(a) * (62.0 - sin(t * 1.8) * 7.0), h * 0.31 + 100.0 + sin(a) * 8.0))
+		draw_colored_polygon(sh, Color(0, 0, 0, 0.3))
+		var r: float = 64.0
+		draw_circle(c, r, Color("f4f7f2"))
+		draw_arc(c, r, 0, TAU, 56, Color("08170f"), 4.0)
+		var rot: float = t * 0.5
+		var pent: PackedVector2Array = PackedVector2Array()
+		for i in 5:
+			var a2: float = rot - PI / 2.0 + TAU * float(i) / 5.0
+			pent.append(c + Vector2(cos(a2), sin(a2)) * r * 0.34)
+		draw_colored_polygon(pent, Color("08170f"))
+		for i in 5:
+			var a3: float = rot - PI / 2.0 + TAU * float(i) / 5.0
+			draw_line(c + Vector2(cos(a3), sin(a3)) * r * 0.34, c + Vector2(cos(a3), sin(a3)) * r * 0.78, Color("08170f"), 3.0)
+			var a4: float = a3 + PI / 5.0
+			draw_circle(c + Vector2(cos(a4), sin(a4)) * r * 0.8, 9.0, Color("08170f"))
+		draw_arc(c + Vector2(-18, -20), 36.0, PI * 1.05, PI * 1.45, 10, Color(1, 1, 1, 0.6), 5.0)
+		var glow: float = 0.5 + 0.5 * sin(t * 2.0)
+		draw_string_outline(fb, Vector2(0, h * 0.80), titolo_h, HORIZONTAL_ALIGNMENT_CENTER, w, 104, 14, Color("08170f"))
+		draw_string(fb, Vector2(0, h * 0.80), titolo_h, HORIZONTAL_ALIGNMENT_CENTER, w, 104, Color(0.96, 0.78 + 0.06 * glow, 0.22, 1.0))
+		draw_string(font, Vector2(0, h * 0.80 + 44.0), sotto_h, HORIZONTAL_ALIGNMENT_CENTER, w, 24, Color("eaf1e8"))
+
+
+# ================= CLASSI INTERNE: MAGLIE, STEMMI, CARTA GIOCATORE =================
+class MagliaView extends Control:
+	var kit: Array = []
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(64, 64)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		if kit.size() < 5:
+			return
+		var s: float = minf(size.x, size.y) / 100.0
+		var off: Vector2 = Vector2((size.x - 100.0 * s) * 0.5, (size.y - 100.0 * s) * 0.5)
+		draw_set_transform(off, 0.0, Vector2(s, s))
+		var c1: Color = kit[0]
+		var c2: Color = kit[3]
+		var pat: int = int(kit[4])
+		var shirt: PackedVector2Array = PackedVector2Array([Vector2(32, 8), Vector2(43, 5), Vector2(57, 5), Vector2(68, 8), Vector2(94, 26), Vector2(82, 43), Vector2(70, 35), Vector2(70, 94), Vector2(30, 94), Vector2(30, 35), Vector2(18, 43), Vector2(6, 26)])
+		var sh: PackedVector2Array = PackedVector2Array()
+		for p in shirt:
+			sh.append(p + Vector2(3, 4))
+		draw_colored_polygon(sh, Color(0, 0, 0, 0.3))
+		draw_colored_polygon(shirt, c1)
+		if pat == 1:
+			for i in 5:
+				if i % 2 == 1:
+					draw_rect(Rect2(30.0 + 8.0 * float(i), 10, 8, 84), c2, true)
+		elif pat == 2:
+			for k in 5:
+				if k % 2 == 1:
+					draw_rect(Rect2(30, 10.0 + 16.0 * float(k), 40, 16), c2, true)
+		elif pat == 3:
+			draw_colored_polygon(PackedVector2Array([Vector2(30, 28), Vector2(30, 48), Vector2(70, 80), Vector2(70, 60)]), c2)
+		elif pat == 4:
+			draw_rect(Rect2(50, 10, 20, 84), c2, true)
+		draw_colored_polygon(PackedVector2Array([Vector2(50, 6), Vector2(57, 5), Vector2(68, 8), Vector2(94, 26), Vector2(82, 43), Vector2(70, 35), Vector2(70, 94), Vector2(50, 94)]), Color(0, 0, 0, 0.14))
+		draw_line(Vector2(94, 26), Vector2(82, 43), c2, 5.0)
+		draw_line(Vector2(6, 26), Vector2(18, 43), c2, 5.0)
+		draw_colored_polygon(PackedVector2Array([Vector2(43, 5), Vector2(50, 19), Vector2(57, 5)]), c1.darkened(0.45))
+		draw_polyline(PackedVector2Array([Vector2(43, 5), Vector2(50, 19), Vector2(57, 5)]), c2, 2.5)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+class StemmaView extends Control:
+	var nome_s: String = ""
+	var kit: Array = []
+	var ini: String = "?"
+	var fb: FontVariation
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(40, 46)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fb = FontVariation.new()
+		fb.base_font = ThemeDB.fallback_font
+		fb.variation_embolden = 0.9
+
+	func imposta(nome: String, k: Array) -> void:
+		nome_s = nome
+		kit = k
+		ini = iniziale(nome)
+		queue_redraw()
+
+	func iniziale(nome: String) -> String:
+		var skip: Array = ["AC", "FC", "SV", "CD", "SC", "US", "AS", "TSV", "VV", "PAS", "AE", "GS", "CF", "Nadi", "Real", "Sporting", "Atletico", "Atlético", "Deportivo", "Racing", "Virtus", "Unione", "Olimpia", "Borussia", "Eintracht", "Olympique", "União", "Sparta", "Genç", "Spartak", "Lokomotiv", "Torpedo", "Atromitos", "Al"]
+		var parole: PackedStringArray = nome.replace(" U19", "").split(" ")
+		for p in parole:
+			if p.length() > 1 and not skip.has(p):
+				return p.substr(0, 1).to_upper()
+		return nome.substr(0, 1).to_upper()
+
+	func _draw() -> void:
+		if kit.size() < 5:
+			return
+		var s: float = minf(size.x / 80.0, size.y / 92.0)
+		var off: Vector2 = Vector2((size.x - 80.0 * s) * 0.5, (size.y - 92.0 * s) * 0.5)
+		draw_set_transform(off, 0.0, Vector2(s, s))
+		var c1: Color = kit[0]
+		var c2: Color = kit[3]
+		var sc: PackedVector2Array = PackedVector2Array([Vector2(8, 6), Vector2(72, 6), Vector2(72, 46), Vector2(40, 88), Vector2(8, 46)])
+		var sh: PackedVector2Array = PackedVector2Array()
+		for p in sc:
+			sh.append(p + Vector2(2, 4))
+		draw_colored_polygon(sh, Color(0, 0, 0, 0.35))
+		draw_colored_polygon(sc, c1)
+		draw_colored_polygon(PackedVector2Array([Vector2(8, 6), Vector2(72, 6), Vector2(72, 24), Vector2(8, 24)]), c2)
+		var ol: PackedVector2Array = sc.duplicate()
+		ol.append(sc[0])
+		draw_polyline(ol, c1.darkened(0.5), 3.0)
+		draw_polyline(ol, Color(1, 1, 1, 0.35), 1.0)
+		var col_l: Color = Color("ffffff")
+		if c1.get_luminance() > 0.6:
+			col_l = Color("14261c")
+		draw_string(fb, Vector2(0, 66), ini, HORIZONTAL_ALIGNMENT_CENTER, 80.0, 40, col_l)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+class CartaGiocatore extends Control:
+	var avatar: AvatarView
+	var nome_c: String = ""
+	var ruolo_c: String = ""
+	var club_c: String = ""
+	var num_c: int = 9
+	var ovr_c: int = 60
+	var attr: Dictionary = {}
+	var fb: FontVariation
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(230, 320)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fb = FontVariation.new()
+		fb.base_font = ThemeDB.fallback_font
+		fb.variation_embolden = 0.9
+		avatar = AvatarView.new()
+		avatar.vista = "busto"
+		avatar.custom_minimum_size = Vector2.ZERO
+		add_child(avatar)
+
+	func imposta(av: Dictionary, k: Array, nome: String, ruolo: String, club: String, num: int, o: int, at: Dictionary) -> void:
+		nome_c = nome.to_upper()
+		ruolo_c = ruolo
+		club_c = club
+		num_c = num
+		ovr_c = o
+		attr = at
+		avatar.imposta(av, k, str(num))
+		queue_redraw()
+
+	func _process(_delta: float) -> void:
+		avatar.position = Vector2(size.x * 0.30, 26.0)
+		avatar.size = Vector2(size.x * 0.62, size.y * 0.38)
+
+	func tinta() -> Array:
+		if ovr_c >= 90:
+			return [Color("0f6670"), Color("7ff0e6"), Color("e9fffb")]
+		if ovr_c >= 80:
+			return [Color("a8801a"), Color("f6e27a"), Color("2a1c02")]
+		if ovr_c >= 65:
+			return [Color("7b858d"), Color("e6ebef"), Color("1b2126")]
+		return [Color("8a5028"), Color("e2a56c"), Color("2a1507")]
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		var tt: Array = tinta()
+		var dark: Color = tt[0]
+		var light: Color = tt[1]
+		var txt: Color = tt[2]
+		var pts: PackedVector2Array = PackedVector2Array([Vector2(26, 0), Vector2(w - 26.0, 0), Vector2(w, 28), Vector2(w, h - 38.0), Vector2(w * 0.5, h), Vector2(0, h - 38.0), Vector2(0, 28)])
+		var sh: PackedVector2Array = PackedVector2Array()
+		for p in pts:
+			sh.append(p + Vector2(0, 8))
+		draw_colored_polygon(sh, Color(0, 0, 0, 0.35))
+		var cols: PackedColorArray = PackedColorArray()
+		for p in pts:
+			cols.append(light.lerp(dark, clampf(p.y / h, 0.0, 1.0)))
+		draw_polygon(pts, cols)
+		var ce: Vector2 = Vector2(w * 0.5, h * 0.5)
+		var inn: PackedVector2Array = PackedVector2Array()
+		for p in pts:
+			inn.append(ce + (p - ce) * 0.945)
+		inn.append(inn[0])
+		draw_polyline(inn, Color(txt.r, txt.g, txt.b, 0.45), 2.0)
+		draw_colored_polygon(PackedVector2Array([Vector2(26, 0), Vector2(w * 0.62, 0), Vector2(w * 0.2, h * 0.55), Vector2(0, h * 0.4), Vector2(0, 28)]), Color(1, 1, 1, 0.12))
+		draw_string(fb, Vector2(18, 64), str(ovr_c), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 56, txt)
+		draw_string(fb, Vector2(20, 90), ruolo_c.substr(0, 3).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 20, txt)
+		draw_string(ThemeDB.fallback_font, Vector2(20, 112), "#%d" % num_c, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 16, Color(txt.r, txt.g, txt.b, 0.8))
+		draw_line(Vector2(w * 0.12, h * 0.585), Vector2(w * 0.88, h * 0.585), Color(txt.r, txt.g, txt.b, 0.45), 1.5)
+		draw_string(fb, Vector2(8, h * 0.655), nome_c, HORIZONTAL_ALIGNMENT_CENTER, w - 16.0, 21, txt)
+		draw_string(ThemeDB.fallback_font, Vector2(8, h * 0.705), club_c, HORIZONTAL_ALIGNMENT_CENTER, w - 16.0, 13, Color(txt.r, txt.g, txt.b, 0.8))
+		var keys: Array = ["tec", "fis", "vel", "men"]
+		var labs: Array = ["TEC", "FIS", "VEL", "MEN"]
+		for i in 4:
+			var cx: float = w * (0.17 + 0.22 * float(i))
+			var v: int = int(attr.get(keys[i], 50))
+			draw_string(fb, Vector2(cx - 24.0, h * 0.80), str(v), HORIZONTAL_ALIGNMENT_CENTER, 48.0, 25, txt)
+			draw_string(ThemeDB.fallback_font, Vector2(cx - 24.0, h * 0.85), labs[i], HORIZONTAL_ALIGNMENT_CENTER, 48.0, 12, Color(txt.r, txt.g, txt.b, 0.85))
+
+
+# ================= CLASSI INTERNE: GRAFICI E ICONE =================
+class RadarView extends Control:
+	var vals: Array = [60, 60, 60, 60]
+	var etich: Array = ["TEC", "FIS", "VEL", "MEN"]
+	var col: Color = Color("3fbf78")
+	var fb: FontVariation
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(250, 230)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fb = FontVariation.new()
+		fb.base_font = ThemeDB.fallback_font
+		fb.variation_embolden = 0.6
+
+	func _draw() -> void:
+		var c: Vector2 = size * 0.5
+		var r: float = minf(size.x, size.y) * 0.34
+		var ang: Array = [-PI * 0.5, 0.0, PI * 0.5, PI]
+		for k in range(1, 5):
+			var pts: PackedVector2Array = PackedVector2Array()
+			for i in 5:
+				var a: float = float(ang[i % 4])
+				pts.append(c + Vector2(cos(a), sin(a)) * r * float(k) / 4.0)
+			draw_polyline(pts, Color(1, 1, 1, 0.10), 1.2)
+		for i in 4:
+			draw_line(c, c + Vector2(cos(float(ang[i])), sin(float(ang[i]))) * r, Color(1, 1, 1, 0.10), 1.0)
+		var pv: PackedVector2Array = PackedVector2Array()
+		for i in 4:
+			var f: float = clampf(float(vals[i]) / 100.0, 0.05, 1.0)
+			var a2: float = float(ang[i])
+			pv.append(c + Vector2(cos(a2), sin(a2)) * r * f)
+		draw_colored_polygon(pv, Color(col.r, col.g, col.b, 0.28))
+		var po: PackedVector2Array = pv.duplicate()
+		po.append(pv[0])
+		draw_polyline(po, col, 3.0)
+		for i in 4:
+			draw_circle(pv[i], 5.0, col)
+			draw_circle(pv[i], 2.0, Color("0f261d"))
+			var a3: float = float(ang[i])
+			var outer: Vector2 = c + Vector2(cos(a3), sin(a3)) * (r + 26.0)
+			draw_string(fb, outer + Vector2(-34.0, 6.0), "%s %d" % [etich[i], int(vals[i])], HORIZONTAL_ALIGNMENT_CENTER, 68.0, 15, Color("eaf1e8"))
+
+
+class DonutView extends Control:
+	var parti: Array = []
+	var centro: String = ""
+	var sub: String = ""
+	var spess: float = 16.0
+	var fb: FontVariation
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(150, 150)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fb = FontVariation.new()
+		fb.base_font = ThemeDB.fallback_font
+		fb.variation_embolden = 0.9
+
+	func _draw() -> void:
+		var c: Vector2 = size * 0.5
+		var r: float = minf(size.x, size.y) * 0.5 - spess * 0.5 - 4.0
+		var tot: float = 0.0
+		for p in parti:
+			tot += float(p[0])
+		if tot <= 0.0:
+			draw_arc(c, r, 0, TAU, 48, Color(1, 1, 1, 0.10), spess)
+		else:
+			var a: float = -PI * 0.5
+			for p in parti:
+				var da: float = TAU * float(p[0]) / tot
+				if da > 0.001:
+					draw_arc(c, r, a, maxf(a + 0.01, a + da - 0.02), 40, p[1], spess)
+				a += da
+		draw_string(fb, Vector2(0, c.y + 11.0), centro, HORIZONTAL_ALIGNMENT_CENTER, size.x, 34, Color("eaf1e8"))
+		if sub != "":
+			draw_string(ThemeDB.fallback_font, Vector2(0, c.y + 32.0), sub, HORIZONTAL_ALIGNMENT_CENTER, size.x, 13, Color("97ab9d"))
+
+
+class TrofeoIcona extends Control:
+	var forma: String = "coppa"
+	var conta: int = 1
+	var fb: FontVariation
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(120, 130)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fb = FontVariation.new()
+		fb.base_font = ThemeDB.fallback_font
+		fb.variation_embolden = 0.9
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		var cx: float = w * 0.5
+		var base_y: float = h - 16.0
+		draw_rect(Rect2(10, base_y + 2.0, w - 20.0, 9), Color("5a3a1e"), true)
+		draw_rect(Rect2(10, base_y + 2.0, w - 20.0, 3), Color("8a5d33"), true)
+		draw_circle(Vector2(cx, base_y - 40.0), 50.0, Color(1, 0.85, 0.3, 0.07))
+		draw_circle(Vector2(cx, base_y - 40.0), 34.0, Color(1, 0.85, 0.3, 0.08))
+		draw_set_transform(Vector2(cx, base_y), 0.0, Vector2(1.2, 1.2))
+		var oro: Color = Color("f0c23a")
+		var oro2: Color = Color("b8860b")
+		var luce: Color = Color(1, 1, 1, 0.55)
+		if forma == "sfera":
+			draw_rect(Rect2(-12, -6, 24, 6), oro2)
+			draw_circle(Vector2(0, -30), 22.0, oro)
+			draw_arc(Vector2(0, -30), 22.0, 0, TAU, 32, oro2, 3.0)
+			var pent: PackedVector2Array = PackedVector2Array()
+			for i in 5:
+				var a: float = -PI / 2.0 + TAU * float(i) / 5.0
+				pent.append(Vector2(0, -30) + Vector2(cos(a), sin(a)) * 8.0)
+			draw_colored_polygon(pent, oro2)
+			draw_arc(Vector2(-6, -37), 11.0, PI * 1.05, PI * 1.55, 8, luce, 3.0)
+		elif forma == "scarpa":
+			draw_rect(Rect2(-20, -4, 56, 5), oro2)
+			draw_colored_polygon(PackedVector2Array([Vector2(-14, -60), Vector2(8, -60), Vector2(10, -34), Vector2(30, -26), Vector2(32, -10), Vector2(-14, -10)]), oro)
+			draw_rect(Rect2(-16, -10, 50, 6), oro2)
+			for i in 4:
+				draw_rect(Rect2(-12.0 + 12.0 * float(i), -4, 5, 5), oro2)
+			draw_line(Vector2(-8, -54), Vector2(-8, -20), luce, 3.0)
+		elif forma == "guanto":
+			draw_rect(Rect2(-14, -4, 28, 6), oro2)
+			draw_rect(Rect2(-12, -12, 24, 10), oro2)
+			draw_rect(Rect2(-14, -36, 28, 26), oro)
+			for i in 4:
+				draw_rect(Rect2(-14.0 + 7.5 * float(i), -58.0 + 3.0 * absf(float(i) - 1.5), 6.5, 24.0), oro)
+			draw_colored_polygon(PackedVector2Array([Vector2(14, -30), Vector2(28, -42), Vector2(33, -35), Vector2(18, -18)]), oro)
+			draw_line(Vector2(-8, -30), Vector2(-8, -14), luce, 3.0)
+		else:
+			draw_rect(Rect2(-16, -8, 32, 8), oro2)
+			draw_rect(Rect2(-5, -26, 10, 18), oro)
+			draw_colored_polygon(PackedVector2Array([Vector2(-22, -70), Vector2(22, -70), Vector2(16, -40), Vector2(7, -26), Vector2(-7, -26), Vector2(-16, -40)]), oro)
+			draw_arc(Vector2(-23, -56), 9.0, PI * 0.5, PI * 1.5, 12, oro2, 4.0)
+			draw_arc(Vector2(23, -56), 9.0, -PI * 0.5, PI * 0.5, 12, oro2, 4.0)
+			draw_line(Vector2(-12, -64), Vector2(-9, -44), luce, 3.0)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		if conta > 1:
+			draw_circle(Vector2(w - 20.0, 22.0), 16.0, Color("e5695f"))
+			draw_arc(Vector2(w - 20.0, 22.0), 16.0, 0, TAU, 20, Color.WHITE, 2.0)
+			draw_string(fb, Vector2(w - 36.0, 28.0), "x%d" % conta, HORIZONTAL_ALIGNMENT_CENTER, 32.0, 16, Color.WHITE)
+
+
+class IconaEv extends Control:
+	var tipo: String = "n"
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(30, 30)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c: Vector2 = size * 0.5
+		var r: float = 12.0
+		if tipo == "gol":
+			draw_circle(c, r, Color("f4f7f2"))
+			draw_arc(c, r, 0, TAU, 24, Color("08170f"), 2.0)
+			var pent: PackedVector2Array = PackedVector2Array()
+			for i in 5:
+				var a: float = -PI / 2.0 + TAU * float(i) / 5.0
+				pent.append(c + Vector2(cos(a), sin(a)) * 5.0)
+			draw_colored_polygon(pent, Color("08170f"))
+			draw_arc(c, r + 2.5, 0, TAU, 24, Color("3fbf78"), 2.0)
+		elif tipo == "me":
+			draw_circle(c, r, Color("f0c23a"))
+			var st: PackedVector2Array = PackedVector2Array()
+			for i in 10:
+				var a2: float = -PI / 2.0 + TAU * float(i) / 10.0
+				var rr: float = 9.0
+				if i % 2 == 1:
+					rr = 4.0
+				st.append(c + Vector2(cos(a2), sin(a2)) * rr)
+			draw_colored_polygon(st, Color("14261c"))
+		elif tipo == "og":
+			draw_circle(c, r, Color("e5695f"))
+			var pent2: PackedVector2Array = PackedVector2Array()
+			for i in 5:
+				var a3: float = -PI / 2.0 + TAU * float(i) / 5.0
+				pent2.append(c + Vector2(cos(a3), sin(a3)) * 5.0)
+			draw_colored_polygon(pent2, Color.WHITE)
+		elif tipo == "inj":
+			draw_circle(c, r, Color("e5695f"))
+			draw_rect(Rect2(c.x - 2.5, c.y - 8.0, 5.0, 16.0), Color.WHITE, true)
+			draw_rect(Rect2(c.x - 8.0, c.y - 2.5, 16.0, 5.0), Color.WHITE, true)
+		else:
+			draw_circle(c, r, Color(1, 1, 1, 0.10))
+			draw_arc(c, r, 0, TAU, 24, Color("97ab9d"), 1.5)
+			draw_line(c, c + Vector2(0, -7), Color("97ab9d"), 2.0)
+			draw_line(c, c + Vector2(5, 2), Color("97ab9d"), 2.0)
+
+
+class GraficoView extends Control:
+	var valori: Array = []
+	var etichette: Array = []
+	var colore: Color = Color("3fbf78")
+	var linea: bool = false
+	var titolo_g: String = ""
+	var vmin: float = 0.0
+	var vmax: float = -1.0
+	var inverti: bool = false
+	var decimali: int = 0
+	var fb: FontVariation
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0, 240)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		fb = FontVariation.new()
+		fb.base_font = ThemeDB.fallback_font
+		fb.variation_embolden = 0.6
+
+	func fmt(v: float) -> String:
+		if decimali == 0:
+			return str(int(roundf(v)))
+		return "%.1f" % v
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		var font: Font = ThemeDB.fallback_font
+		draw_rect(Rect2(0, 0, w, h), Color(0, 0, 0, 0.22), true)
+		draw_rect(Rect2(0, 0, w, 3), colore, true)
+		draw_string(fb, Vector2(16, 30), titolo_g, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 18, Color("eaf1e8"))
+		if valori.size() == 0:
+			draw_string(font, Vector2(0, h * 0.58), "Nessun dato: gioca almeno una stagione.", HORIZONTAL_ALIGNMENT_CENTER, w, 16, Color("97ab9d"))
+			return
+		var ml: float = 46.0
+		var mr: float = 18.0
+		var mt: float = 50.0
+		var mb: float = 30.0
+		var pw: float = w - ml - mr
+		var ph: float = h - mt - mb
+		var hi: float = vmax
+		if hi < 0.0:
+			hi = 1.0
+			for v in valori:
+				hi = maxf(hi, float(v))
+			hi = hi * 1.15
+		var lo: float = vmin
+		var rng: float = maxf(0.001, hi - lo)
+		for g in 5:
+			var gy: float = mt + ph * float(g) / 4.0
+			draw_dashed_line(Vector2(ml, gy), Vector2(w - mr, gy), Color(1, 1, 1, 0.10), 1.0, 5.0)
+			var val: float = hi - rng * float(g) / 4.0
+			if inverti:
+				val = lo + rng * float(g) / 4.0
+			draw_string(font, Vector2(2, gy + 5.0), fmt(val), HORIZONTAL_ALIGNMENT_RIGHT, ml - 8.0, 13, Color("97ab9d"))
+		var n: int = valori.size()
+		var pts: PackedVector2Array = PackedVector2Array()
+		var bw: float = minf(46.0, pw / float(n) * 0.6)
+		for i in n:
+			var cx: float = ml + pw * (float(i) + 0.5) / float(n)
+			var fr: float = clampf((float(valori[i]) - lo) / rng, 0.0, 1.0)
+			var cy: float = mt + ph * (1.0 - fr)
+			if inverti:
+				cy = mt + ph * fr
+			pts.append(Vector2(cx, cy))
+			if not linea:
+				var bb: float = mt + ph
+				var bar: PackedVector2Array = PackedVector2Array([Vector2(cx - bw * 0.5, cy), Vector2(cx + bw * 0.5, cy), Vector2(cx + bw * 0.5, bb), Vector2(cx - bw * 0.5, bb)])
+				draw_polygon(bar, PackedColorArray([colore.lightened(0.3), colore.lightened(0.3), colore.darkened(0.35), colore.darkened(0.35)]))
+			draw_string(font, Vector2(cx - 24.0, h - 8.0), str(etichette[i]), HORIZONTAL_ALIGNMENT_CENTER, 48.0, 13, Color("97ab9d"))
+		if linea:
+			if pts.size() > 1:
+				if not inverti:
+					var area: PackedVector2Array = pts.duplicate()
+					area.append(Vector2(pts[pts.size() - 1].x, mt + ph))
+					area.append(Vector2(pts[0].x, mt + ph))
+					draw_colored_polygon(area, Color(colore.r, colore.g, colore.b, 0.16))
+				draw_polyline(pts, colore, 3.5)
+			for i in n:
+				draw_circle(pts[i], 6.0, colore)
+				draw_circle(pts[i], 2.6, Color("0f261d"))
+		for i in n:
+			draw_string(fb, Vector2(pts[i].x - 26.0, pts[i].y - 10.0), fmt(float(valori[i])), HORIZONTAL_ALIGNMENT_CENTER, 52.0, 14, Color("eaf1e8"))
+
+
+# ================= CLASSI INTERNE: CAMPI E TIRO =================
+class CampoView extends Control:
+	signal scelta(nome: String)
+	var selezione: String = "Attaccante"
+	var punti: Array = []
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(260, 340)
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		draw_rect(Rect2(0, 0, w, h), Color("1f7a47"), true)
+		for i in 8:
+			if i % 2 == 0:
+				draw_rect(Rect2(0, h * float(i) / 8.0, w, h / 8.0), Color(1, 1, 1, 0.05), true)
+		var bianco: Color = Color(1, 1, 1, 0.75)
+		draw_rect(Rect2(4, 4, w - 8, h - 8), bianco, false, 2.0)
+		draw_line(Vector2(4, h / 2.0), Vector2(w - 4, h / 2.0), bianco, 2.0)
+		draw_arc(Vector2(w / 2.0, h / 2.0), w * 0.14, 0, TAU, 40, bianco, 2.0)
+		draw_rect(Rect2(w * 0.25, 4, w * 0.5, h * 0.15), bianco, false, 2.0)
+		draw_rect(Rect2(w * 0.25, h * 0.85 - 4, w * 0.5, h * 0.15), bianco, false, 2.0)
+		for p in punti:
+			var c: Vector2 = Vector2(float(p[2]) * w, float(p[3]) * h)
+			var sel: bool = p[0] == selezione
+			var fondo: Color = Color("14261c")
+			var testo: Color = Color.WHITE
+			if sel:
+				fondo = Color("f0c23a")
+				testo = Color("14261c")
+			draw_circle(c, 18.0, fondo)
+			draw_arc(c, 18.0, 0, TAU, 24, Color.WHITE, 2.0)
+			draw_string(ThemeDB.fallback_font, c + Vector2(-18, 5), str(p[1]), HORIZONTAL_ALIGNMENT_CENTER, 36, 13, testo)
+
+	func _gui_input(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			for p in punti:
+				var c: Vector2 = Vector2(float(p[2]) * size.x, float(p[3]) * size.y)
+				if event.position.distance_to(c) <= 26.0:
+					selezione = p[0]
+					scelta.emit(p[0])
+					queue_redraw()
+					return
+
+
+class CampoPartita extends Control:
+	var palla: Vector2 = Vector2(0.5, 0.5)
+	var target: Vector2 = Vector2(0.5, 0.5)
+	var io: Vector2 = Vector2(0.5, 0.15)
+	var num: String = "9"
+	var squadra: Array = []
+	var avversari: Array = []
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(300, 420)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		squadra = [Vector2(0.5, 0.9), Vector2(0.2, 0.72), Vector2(0.4, 0.74), Vector2(0.6, 0.74), Vector2(0.8, 0.72),
+			Vector2(0.25, 0.55), Vector2(0.5, 0.58), Vector2(0.75, 0.55), Vector2(0.2, 0.32), Vector2(0.5, 0.28), Vector2(0.8, 0.32)]
+		for p in squadra:
+			avversari.append(Vector2(1.0 - float(p.x), 1.0 - float(p.y)))
+
+	func palla_verso(p: Vector2) -> void:
+		target = p
+
+	func palla_subito(p: Vector2) -> void:
+		target = p
+		palla = p
+
+	func _process(delta: float) -> void:
+		palla = palla.lerp(target, minf(1.0, delta * 3.0))
+		queue_redraw()
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		draw_rect(Rect2(0, 0, w, h), Color("1f7a47"), true)
+		for i in 8:
+			if i % 2 == 0:
+				draw_rect(Rect2(0, h * float(i) / 8.0, w, h / 8.0), Color(1, 1, 1, 0.05), true)
+		var bianco: Color = Color(1, 1, 1, 0.7)
+		draw_rect(Rect2(4, 4, w - 8, h - 8), bianco, false, 2.0)
+		draw_line(Vector2(4, h / 2.0), Vector2(w - 4, h / 2.0), bianco, 2.0)
+		draw_arc(Vector2(w / 2.0, h / 2.0), w * 0.13, 0, TAU, 40, bianco, 2.0)
+		draw_rect(Rect2(w * 0.25, 4, w * 0.5, h * 0.14), bianco, false, 2.0)
+		draw_rect(Rect2(w * 0.25, h * 0.86 - 4, w * 0.5, h * 0.14), bianco, false, 2.0)
+		var tt: float = float(Time.get_ticks_msec()) / 1000.0
+		for i in squadra.size():
+			var p: Vector2 = squadra[i]
+			var off: Vector2 = Vector2(sin(tt * 1.3 + float(i)), cos(tt * 1.1 + float(i) * 1.7)) * 0.01
+			draw_circle(Vector2((p.x + off.x) * w, (p.y + off.y) * h), 8.0, Color("2d6cdf"))
+		for i in avversari.size():
+			var p2: Vector2 = avversari[i]
+			var off2: Vector2 = Vector2(cos(tt * 1.2 + float(i) * 1.3), sin(tt * 1.4 + float(i))) * 0.01
+			draw_circle(Vector2((p2.x + off2.x) * w, (p2.y + off2.y) * h), 8.0, Color("d9534f"))
+		var me: Vector2 = Vector2(io.x * w, io.y * h)
+		draw_circle(me, 13.0, Color("f0c23a"))
+		draw_arc(me, 13.0, 0, TAU, 24, Color.WHITE, 2.0)
+		draw_string(ThemeDB.fallback_font, me + Vector2(-13, 5), num, HORIZONTAL_ALIGNMENT_CENTER, 26, 13, Color("14261c"))
+		var pb: Vector2 = Vector2(palla.x * w, palla.y * h)
+		draw_circle(pb, 7.0, Color.WHITE)
+		draw_arc(pb, 7.0, 0, TAU, 16, Color("08170f"), 2.0)
+
+
+class PortaView extends Control:
+	signal finito(esito: String)
+	var raggio: float = 16.0
+	var velocita: float = 1.0
+	var t: float = 0.0
+	var tc: float = 0.0
+	var f1: float = 0.0
+	var f2: float = 0.0
+	var concluso: bool = false
+	var esito_txt: String = ""
+	var tiro_pos: Vector2 = Vector2(-1, -1)
+	var kx: float = 0.5
+	var kx_t: float = 0.5
+	var bers: Vector2 = Vector2(300, 150)
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0, 340)
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		f1 = randf() * 6.0
+		f2 = randf() * 6.0
+
+	func rp() -> float:
+		return raggio * size.y / 140.0
+
+	func porta_rect() -> Rect2:
+		return Rect2(size.x * 0.12, size.y * 0.10, size.x * 0.76, size.y * 0.74)
+
+	func _process(delta: float) -> void:
+		if concluso:
+			tc += delta
+			kx = lerpf(kx, kx_t, minf(1.0, delta * 8.0))
+			queue_redraw()
+			return
+		t += delta
+		var pr: Rect2 = porta_rect()
+		bers = Vector2(pr.position.x + pr.size.x * (0.5 + 0.38 * sin(t * 1.8 * velocita + f1)), pr.position.y + pr.size.y * (0.55 + 0.3 * sin(t * 2.7 * velocita + f2)))
+		if t > 4.5:
+			chiudi("lento")
+		queue_redraw()
+
+	func chiudi(es: String) -> void:
+		if concluso:
+			return
+		concluso = true
+		esito_txt = es
+		if es == "gol":
+			if bers.x < size.x * 0.5:
+				kx_t = 0.78
+			else:
+				kx_t = 0.22
+		elif es == "para":
+			kx_t = clampf(tiro_pos.x / size.x, 0.2, 0.8)
+		finito.emit(es)
+
+	func _gui_input(event: InputEvent) -> void:
+		if concluso:
+			return
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			tiro_pos = event.position
+			if not porta_rect().has_point(tiro_pos):
+				chiudi("fuori")
+			elif tiro_pos.distance_to(bers) <= rp():
+				chiudi("gol")
+			else:
+				chiudi("para")
+
+	func _draw() -> void:
+		var oro: Color = Color("f0c23a")
+		draw_rect(Rect2(Vector2.ZERO, size), Color("0f2a1e"), true)
+		draw_rect(Rect2(0, size.y * 0.62, size.x, size.y * 0.38), Color("1f7a47"), true)
+		for i in 6:
+			if i % 2 == 0:
+				draw_rect(Rect2(size.x * float(i) / 6.0, size.y * 0.62, size.x / 6.0, size.y * 0.38), Color(1, 1, 1, 0.04), true)
+		var pr: Rect2 = porta_rect()
+		draw_rect(pr, Color(1, 1, 1, 0.07), true)
+		for i in range(1, 20):
+			var x: float = pr.position.x + pr.size.x * float(i) / 20.0
+			draw_line(Vector2(x, pr.position.y), Vector2(x, pr.end.y), Color(1, 1, 1, 0.12), 1.0)
+		for i in range(1, 8):
+			var y: float = pr.position.y + pr.size.y * float(i) / 8.0
+			draw_line(Vector2(pr.position.x, y), Vector2(pr.end.x, y), Color(1, 1, 1, 0.12), 1.0)
+		draw_rect(pr, Color.WHITE, false, 6.0)
+		var kp: Vector2 = Vector2(size.x * kx, pr.end.y - size.y * 0.16)
+		draw_circle(kp + Vector2(0, -size.y * 0.13), size.y * 0.06, oro)
+		draw_rect(Rect2(kp.x - size.x * 0.02, kp.y - size.y * 0.07, size.x * 0.04, size.y * 0.24), oro, true)
+		if not concluso:
+			var puls: float = 1.0 + 0.08 * sin(t * 8.0)
+			draw_circle(bers, rp() * puls, Color(0.25, 0.75, 0.47, 0.9))
+			draw_arc(bers, rp() * puls, 0, TAU, 40, Color.WHITE, 3.0)
+		var inizio: Vector2 = Vector2(size.x * 0.5, size.y * 0.95)
+		var pb: Vector2 = inizio
+		if concluso and tiro_pos.x >= 0.0:
+			pb = inizio.lerp(tiro_pos, clampf(tc * 6.0, 0.0, 1.0))
+		draw_circle(pb, 12.0, Color.WHITE)
+		draw_arc(pb, 12.0, 0, TAU, 20, Color("08170f"), 3.0)
+		draw_rect(Rect2(0, size.y - 8, size.x * clampf(1.0 - t / 4.5, 0.0, 1.0), 8), oro, true)
+		if concluso:
+			var testo: String = "PARATA!"
+			var col: Color = Color("e5695f")
+			if esito_txt == "gol":
+				testo = "GOL!"
+				col = Color("3fbf78")
+			elif esito_txt == "fuori":
+				testo = "FUORI!"
+			elif esito_txt == "lento":
+				testo = "TROPPO LENTO!"
+			draw_string(ThemeDB.fallback_font, Vector2(0, size.y * 0.5), testo, HORIZONTAL_ALIGNMENT_CENTER, size.x, 56, col)
+
+
+# ================= CLASSE INTERNA: PERSONAGGIO =================
+class AvatarView extends Control:
+	const PELLI := [Color("f8dcc6"), Color("f1c8a5"), Color("e0ac7e"), Color("c68642"), Color("a0693a"), Color("7b4a2b"), Color("5b3820"), Color("3f2a1c")]
+	const COL_CAP := [Color("1b1b1b"), Color("3a2415"), Color("5a3a22"), Color("8b5a2b"), Color("c79a4a"), Color("e8d08a"), Color("b5482f"), Color("9a9a9a"), Color("eaeaea"), Color("2f6fd0")]
+	const COL_OCCHI := [Color("3b2a1a"), Color("5a3b1e"), Color("2f6f9f"), Color("3a7d44"), Color("7a7a7a"), Color("2b2b2b")]
+	const COL_SCARP := [Color("111111"), Color("f0c23a"), Color("e5333a"), Color("2f80ed"), Color("3fbf78"), Color("ffffff"), Color("ff7a1a"), Color("c05cff")]
+	const NOMI_CAP := ["Rasato", "Corto", "Ricci", "Afro", "Cresta", "Lunghi", "Codino", "Spazzola", "Treccine", "Chignon", "Fade laterale", "Pettinato indietro"]
+	const NOMI_BARBA := ["Nessuna", "Ombra", "Barba corta", "Pizzetto", "Barba piena", "Baffi"]
+	const NOMI_CORP := ["Snello", "Atletico", "Robusto"]
+	const NOMI_ACC := ["Nessuno", "Fascia sportiva", "Fascia sottile", "Occhiali sportivi", "Occhiali scuri"]
+	const NOMI_ACC2 := ["Nessuno", "Fascia da capitano", "Maglia termica", "Parapolsi"]
+	const NOMI_GIO := ["Nessuno", "Orecchino", "Catenina"]
+	const NOMI_TATT := ["Nessuno", "Tribale sul braccio", "Manica tatuata"]
+
+	var av: Dictionary = {}
+	var kit: Array = []
+	var num: String = "9"
+	var vista: String = "intero"
+	var pose: String = "fermo"
+	var alza: float = 1.0
+	var trofeo: String = ""
+	var animato: bool = false
+	var t: float = 0.0
+	var _o: Vector2 = Vector2.ZERO
+	var _s: float = 1.0
+	var c_pelle: Color = Color.WHITE
+	var c_pd: Color = Color.WHITE
+	var c_cap: Color = Color.BLACK
+	var c_occ: Color = Color.BLACK
+	var c_scarp: Color = Color.BLACK
+	var c_mag: Color = Color.BLUE
+	var c_calz: Color = Color.WHITE
+	var c_calze: Color = Color.BLUE
+	var c_sec: Color = Color.WHITE
+	var c_pat: int = 0
+	var c_corp: int = 1
+	var c_acc: int = 0
+	var c_acc2: int = 0
+	var c_gio: int = 0
+	var c_tatt: int = 0
+	var c_barba: int = 0
+	var c_stile: int = 1
+	var c_sh: float = 31.0
+	var c_wf: float = 0.76
+	var c_nk: float = 8.5
+	var c_aw: float = 16.0
+	var c_sp: float = 13.5
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		custom_minimum_size = Vector2(160, 300)
+		kit = [Color("2d6cdf"), Color("ffffff"), Color("2d6cdf"), Color("ffffff"), 0]
+
+	func imposta(a: Dictionary, k: Array, n: String) -> void:
+		av = a
+		kit = k
+		num = n
+		clip_contents = (vista != "intero")
+		set_process(animato)
+		queue_redraw()
+
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+
+	func _prep() -> void:
+		c_pelle = PELLI[clampi(int(av.get("pelle", 1)), 0, PELLI.size() - 1)]
+		c_pd = c_pelle.darkened(0.2)
+		c_cap = COL_CAP[clampi(int(av.get("col_cap", 1)), 0, COL_CAP.size() - 1)]
+		c_occ = COL_OCCHI[clampi(int(av.get("occhi", 0)), 0, COL_OCCHI.size() - 1)]
+		c_scarp = COL_SCARP[clampi(int(av.get("scarpini", 0)), 0, COL_SCARP.size() - 1)]
+		c_corp = clampi(int(av.get("corp", 1)), 0, 2)
+		c_stile = clampi(int(av.get("capelli", 1)), 0, 11)
+		c_barba = clampi(int(av.get("barba", 0)), 0, 5)
+		c_acc = clampi(int(av.get("acc", 0)), 0, 4)
+		c_acc2 = clampi(int(av.get("acc2", 0)), 0, 3)
+		c_gio = clampi(int(av.get("gioiello", 0)), 0, 2)
+		c_tatt = clampi(int(av.get("tatt", 0)), 0, 2)
+		c_mag = kit[0]
+		c_calz = kit[1]
+		c_calze = kit[2]
+		c_sec = c_mag.lightened(0.5)
+		c_pat = 0
+		if kit.size() > 4:
+			c_sec = kit[3]
+			c_pat = int(kit[4])
+		var shs: Array = [27.0, 31.0, 37.0]
+		var wfs: Array = [0.80, 0.76, 0.90]
+		var nks: Array = [7.0, 8.5, 10.0]
+		var aws: Array = [14.0, 16.0, 19.0]
+		var sps: Array = [12.0, 13.5, 15.5]
+		c_sh = shs[c_corp]
+		c_wf = wfs[c_corp]
+		c_nk = nks[c_corp]
+		c_aw = aws[c_corp]
+		c_sp = sps[c_corp]
+
+	func lum(c: Color) -> float:
+		return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b
+
+	func ell(c: Vector2, rx: float, ry: float, col: Color) -> void:
+		var pts: PackedVector2Array = PackedVector2Array()
+		for i in 24:
+			var a: float = TAU * float(i) / 24.0
+			pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+		draw_colored_polygon(pts, col)
+
+	func ell_linea(c: Vector2, rx: float, ry: float, col: Color, w: float) -> void:
+		var pts: PackedVector2Array = PackedVector2Array()
+		for i in 25:
+			var a: float = TAU * float(i) / 24.0
+			pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+		draw_polyline(pts, col, w)
+
+	func arco_ell(c: Vector2, rx: float, ry: float, a0: float, a1: float, col: Color, w: float) -> void:
+		var pts: PackedVector2Array = PackedVector2Array()
+		for i in 21:
+			var a: float = a0 + (a1 - a0) * float(i) / 20.0
+			pts.append(c + Vector2(cos(a) * rx, sin(a) * ry))
+		draw_polyline(pts, col, w)
+
+	func arto(a: Vector2, b: Vector2, spess: float, col: Color) -> void:
+		draw_line(a, b, col, spess)
+		draw_circle(a, spess * 0.5, col)
+		draw_circle(b, spess * 0.5, col)
+
+	func cuffia(rx: float, ry: float, linea: float, col: Color) -> void:
+		var pts: PackedVector2Array = PackedVector2Array()
+		for i in 17:
+			var a: float = PI * 0.92 + PI * 1.16 * float(i) / 16.0
+			pts.append(Vector2(100.0 + cos(a) * rx, 92.0 + sin(a) * ry))
+		pts.append(Vector2(100.0 + rx * 0.8, linea + 4.0))
+		pts.append(Vector2(100.0 + rx * 0.45, linea - 2.0))
+		pts.append(Vector2(100.0, linea - 4.0))
+		pts.append(Vector2(100.0 - rx * 0.45, linea - 2.0))
+		pts.append(Vector2(100.0 - rx * 0.8, linea + 4.0))
+		draw_colored_polygon(pts, col)
+
+	func mezza(y: float) -> float:
+		if y < 146.0:
+			return lerpf(c_nk + 2.0, c_sh + 2.0, (y - 128.0) / 18.0)
+		if y <= 180.0:
+			return lerpf(c_sh + 2.0, c_sh * 0.9, (y - 146.0) / 34.0)
+		return lerpf(c_sh * 0.9, c_sh * c_wf, (y - 180.0) / 34.0)
+
+	func tx(y: float, f: float) -> float:
+		return 100.0 + (2.0 * f - 1.0) * mezza(y)
+
+	func banda(f0: float, f1: float, col: Color) -> void:
+		var ys: Array = [132.0, 146.0, 180.0, 214.0]
+		var pts: PackedVector2Array = PackedVector2Array()
+		for y in ys:
+			pts.append(Vector2(tx(float(y), f1), float(y)))
+		for i in range(3, -1, -1):
+			pts.append(Vector2(tx(float(ys[i]), f0), float(ys[i])))
+		draw_colored_polygon(pts, col)
+
+	func dis_pattern() -> void:
+		if c_pat == 1:
+			for i in 5:
+				if i % 2 == 1:
+					banda(float(i) / 5.0, float(i + 1) / 5.0, c_sec)
+		elif c_pat == 2:
+			for k in 4:
+				if k % 2 == 1:
+					var y0: float = 136.0 + 18.0 * float(k)
+					var y1: float = y0 + 18.0
+					draw_colored_polygon(PackedVector2Array([Vector2(tx(y0, 0.0), y0), Vector2(tx(y0, 1.0), y0), Vector2(tx(y1, 1.0), y1), Vector2(tx(y1, 0.0), y1)]), c_sec)
+		elif c_pat == 3:
+			draw_colored_polygon(PackedVector2Array([Vector2(tx(134.0, 0.06), 134.0), Vector2(tx(134.0, 0.46), 134.0), Vector2(tx(214.0, 0.94), 214.0), Vector2(tx(214.0, 0.54), 214.0)]), c_sec)
+		elif c_pat == 4:
+			banda(0.5, 1.0, c_sec)
+
+	func dis_gambe() -> void:
+		var wst: float = c_sh * c_wf + 2.0
+		for li in 2:
+			var lato: float = -1.0 + 2.0 * float(li)
+			var lx: float = 100.0 + lato * c_sp
+			draw_colored_polygon(PackedVector2Array([Vector2(lx - 10.5, 262.0), Vector2(lx + 10.5, 262.0), Vector2(lx + 8.5, 298.0), Vector2(lx - 8.5, 298.0)]), c_pelle)
+			draw_colored_polygon(PackedVector2Array([Vector2(lx + 2.0, 262.0), Vector2(lx + 10.5, 262.0), Vector2(lx + 8.5, 298.0), Vector2(lx + 3.0, 298.0)]), Color(0, 0, 0, 0.13))
+			ell(Vector2(lx - 3.0, 276.0), 3.0, 11.0, Color(1, 1, 1, 0.07))
+			ell(Vector2(lx, 297.0), 8.0, 4.5, Color(c_pd.r, c_pd.g, c_pd.b, 0.4))
+			draw_colored_polygon(PackedVector2Array([Vector2(lx - 8.0, 299.0), Vector2(lx + 8.0, 299.0), Vector2(lx + 9.5, 315.0), Vector2(lx + 6.5, 339.0), Vector2(lx - 6.5, 339.0), Vector2(lx - 9.5, 315.0)]), c_calze)
+			draw_rect(Rect2(lx - 8.0, 299.0, 16.0, 5.0), c_sec)
+			draw_colored_polygon(PackedVector2Array([Vector2(lx + 2.0, 304.0), Vector2(lx + 9.0, 312.0), Vector2(lx + 6.5, 339.0), Vector2(lx + 2.0, 339.0)]), Color(0, 0, 0, 0.14))
+			draw_colored_polygon(PackedVector2Array([Vector2(lx - 7.0, 338.0), Vector2(lx + 7.0, 338.0), Vector2(lx + 12.0, 346.0), Vector2(lx + 14.0, 353.0), Vector2(lx - 14.0, 353.0), Vector2(lx - 12.0, 346.0)]), c_scarp)
+			draw_rect(Rect2(lx - 14.0, 352.0, 28.0, 3.0), Color("0b0b0b"))
+			for k in 3:
+				draw_line(Vector2(lx - 4.0, 341.0 + 2.5 * float(k)), Vector2(lx + 4.0, 341.0 + 2.5 * float(k)), Color(1, 1, 1, 0.55), 1.0)
+			draw_arc(Vector2(lx - 3.0, 348.0), 7.0, PI * 1.1, PI * 1.6, 8, Color(1, 1, 1, 0.3), 1.5)
+		draw_colored_polygon(PackedVector2Array([Vector2(100.0 - wst, 206.0), Vector2(99.0, 206.0), Vector2(98.5, 267.0), Vector2(100.0 - wst - 5.0, 267.0)]), c_calz)
+		draw_colored_polygon(PackedVector2Array([Vector2(101.0, 206.0), Vector2(100.0 + wst, 206.0), Vector2(100.0 + wst + 5.0, 267.0), Vector2(101.5, 267.0)]), c_calz)
+		draw_colored_polygon(PackedVector2Array([Vector2(101.0, 206.0), Vector2(100.0 + wst, 206.0), Vector2(100.0 + wst + 5.0, 267.0), Vector2(101.5, 267.0)]), Color(0, 0, 0, 0.12))
+		draw_colored_polygon(PackedVector2Array([Vector2(100.0 - wst, 206.0), Vector2(100.0 - wst + 3.0, 206.0), Vector2(100.0 - wst - 2.0, 267.0), Vector2(100.0 - wst - 5.0, 267.0)]), c_sec)
+		draw_colored_polygon(PackedVector2Array([Vector2(100.0 + wst - 3.0, 206.0), Vector2(100.0 + wst, 206.0), Vector2(100.0 + wst + 5.0, 267.0), Vector2(100.0 + wst + 2.0, 267.0)]), c_sec)
+
+	func dis_collo() -> void:
+		var nk: float = c_nk
+		draw_rect(Rect2(100.0 - nk, 110.0, nk * 2.0, 24.0), c_pelle)
+		draw_rect(Rect2(101.0, 110.0, nk - 1.0, 24.0), Color(0, 0, 0, 0.12))
+		ell(Vector2(100.0, 119.0), nk, 4.5, Color(0, 0, 0, 0.22))
+
+	func dis_torso() -> void:
+		var sh: float = c_sh
+		var wv: float = sh * c_wf
+		var nk: float = c_nk
+		draw_colored_polygon(PackedVector2Array([
+			Vector2(100.0 - nk - 2.0, 128.0), Vector2(100.0 + nk + 2.0, 128.0),
+			Vector2(100.0 + sh + 2.0, 146.0), Vector2(100.0 + sh * 0.9, 180.0), Vector2(100.0 + wv, 214.0),
+			Vector2(100.0 - wv, 214.0), Vector2(100.0 - sh * 0.9, 180.0), Vector2(100.0 - sh - 2.0, 146.0)]), c_mag)
+		dis_pattern()
+		draw_colored_polygon(PackedVector2Array([Vector2(100.0, 130.0), Vector2(100.0 + nk + 2.0, 128.0), Vector2(100.0 + sh + 2.0, 146.0), Vector2(100.0 + sh * 0.9, 180.0), Vector2(100.0 + wv, 214.0), Vector2(100.0, 214.0)]), Color(0, 0, 0, 0.12))
+		draw_colored_polygon(PackedVector2Array([Vector2(100.0 - nk - 2.0, 128.0), Vector2(100.0 - sh - 2.0, 146.0), Vector2(100.0 - sh * 0.9, 172.0), Vector2(100.0 - nk, 150.0)]), Color(1, 1, 1, 0.08))
+		draw_colored_polygon(PackedVector2Array([Vector2(91.0, 129.0), Vector2(109.0, 129.0), Vector2(100.0, 146.0)]), c_pd)
+		draw_line(Vector2(91.0, 129.0), Vector2(100.0, 146.0), c_sec, 3.0)
+		draw_line(Vector2(109.0, 129.0), Vector2(100.0, 146.0), c_sec, 3.0)
+		draw_colored_polygon(PackedVector2Array([Vector2(83.0, 153.0), Vector2(93.0, 153.0), Vector2(93.0, 160.0), Vector2(88.0, 166.0), Vector2(83.0, 160.0)]), c_sec)
+		draw_polyline(PackedVector2Array([Vector2(83.0, 153.0), Vector2(93.0, 153.0), Vector2(93.0, 160.0), Vector2(88.0, 166.0), Vector2(83.0, 160.0), Vector2(83.0, 153.0)]), Color(0, 0, 0, 0.3), 1.0)
+		var col_num: Color = Color("ffffff")
+		if lum(c_mag) > 0.6:
+			col_num = Color("14261c")
+		draw_string(ThemeDB.fallback_font, Vector2(84.0, 198.0), num, HORIZONTAL_ALIGNMENT_CENTER, 32.0, 26, col_num)
+		draw_line(Vector2(92.0, 202.0), Vector2(96.0, 213.0), Color(0, 0, 0, 0.07), 2.0)
+		draw_line(Vector2(108.0, 200.0), Vector2(104.0, 212.0), Color(0, 0, 0, 0.07), 2.0)
+		if c_gio == 2:
+			var gold: Color = Color("f0c23a")
+			draw_polyline(PackedVector2Array([Vector2(91.0, 129.0), Vector2(94.0, 137.0), Vector2(100.0, 142.0), Vector2(106.0, 137.0), Vector2(109.0, 129.0)]), gold, 1.8)
+			draw_circle(Vector2(100.0, 144.0), 2.6, gold)
+			draw_circle(Vector2(99.4, 143.4), 0.8, Color(1, 1, 1, 0.8))
+
+	func dis_braccia() -> void:
+		var sh: float = c_sh
+		var fer_e: Vector2 = Vector2(sh + 5.0, 196.0)
+		var fer_h: Vector2 = Vector2(sh + 7.0, 236.0)
+		var e_d: Vector2 = fer_e
+		var h_d: Vector2 = fer_h
+		if pose == "trofeo":
+			e_d = fer_e.lerp(Vector2(sh + 16.0, 106.0), alza)
+			h_d = fer_h.lerp(Vector2(17.0, 58.0), alza)
+		elif pose == "esulta":
+			e_d = fer_e.lerp(Vector2(sh + 24.0, 108.0), alza)
+			h_d = fer_h.lerp(Vector2(sh + 34.0, 62.0), alza)
+		var term: Color = c_mag.darkened(0.4)
+		if lum(c_mag) < 0.22:
+			term = c_mag.lightened(0.2)
+		var inchiostro: Color = c_pelle.darkened(0.7)
+		inchiostro.a = 0.85
+		for li in 2:
+			var lato: float = -1.0 + 2.0 * float(li)
+			var spal: Vector2 = Vector2(100.0 + lato * (sh - 3.0), 150.0)
+			var gom: Vector2 = Vector2(100.0 + lato * e_d.x, e_d.y)
+			var man: Vector2 = Vector2(100.0 + lato * h_d.x, h_d.y)
+			var dv: Vector2 = (man - gom).normalized()
+			var nv: Vector2 = Vector2(-dv.y, dv.x)
+			var dv2: Vector2 = (gom - spal).normalized()
+			var nv2: Vector2 = Vector2(-dv2.y, dv2.x)
+			var colb: Color = c_pelle
+			if c_acc2 == 2:
+				colb = term
+			arto(gom, man, c_aw * 0.72, colb)
+			arto(spal, gom, c_aw, colb)
+			draw_line(gom.lerp(man, 0.15) + Vector2(-2.0, 0.0), gom.lerp(man, 0.85) + Vector2(-2.0, 0.0), Color(1, 1, 1, 0.12), 2.0)
+			draw_line(spal.lerp(gom, 0.6) + Vector2(3.0, 0.0), gom + Vector2(3.0, 0.0), Color(0, 0, 0, 0.12), 3.0)
+			if c_acc2 == 2:
+				var pol: Vector2 = man - dv * 3.0
+				draw_line(pol - nv * (c_aw * 0.38), pol + nv * (c_aw * 0.38), term.darkened(0.25), 4.0)
+			if li == 1 and c_tatt > 0 and c_acc2 != 2:
+				if c_tatt == 1:
+					for k in 3:
+						var tp: Vector2 = gom.lerp(man, 0.2 + 0.25 * float(k))
+						draw_line(tp - nv * (c_aw * 0.28), tp + nv * (c_aw * 0.28), inchiostro, 2.2)
+						draw_circle(tp, 1.6, inchiostro)
+					draw_line(gom.lerp(man, 0.18), gom.lerp(man, 0.78), inchiostro, 1.4)
+				else:
+					for k in 7:
+						var t0: float = 0.1 + 0.11 * float(k)
+						var pa: Vector2 = gom.lerp(man, t0) + nv * (c_aw * 0.22)
+						var pb: Vector2 = gom.lerp(man, t0 + 0.07) - nv * (c_aw * 0.22)
+						draw_line(pa, pb, inchiostro, 2.0)
+					draw_line(gom.lerp(man, 0.08) - nv * (c_aw * 0.2), gom.lerp(man, 0.9) - nv * (c_aw * 0.2), inchiostro, 1.4)
+			var mf: Vector2 = spal.lerp(gom, 0.55)
+			arto(spal, mf, c_aw + 3.0, c_mag)
+			draw_line(mf - nv2 * (c_aw * 0.58), mf + nv2 * (c_aw * 0.58), c_sec, 3.5)
+			if c_acc2 == 1 and li == 0:
+				var cp: Vector2 = spal.lerp(gom, 0.82)
+				draw_line(cp - nv2 * (c_aw * 0.6), cp + nv2 * (c_aw * 0.6), Color("1a1a1a"), 8.0)
+				draw_line(cp - nv2 * (c_aw * 0.6), cp + nv2 * (c_aw * 0.6), Color("f0c23a"), 5.5)
+				draw_string(ThemeDB.fallback_font, cp + Vector2(-3.0, 3.5), "C", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 9, Color("1a1a1a"))
+			if c_acc2 == 3:
+				var pw: Vector2 = man - dv * 5.0
+				draw_line(pw - nv * (c_aw * 0.46), pw + nv * (c_aw * 0.46), Color("f4f4f4"), 5.5)
+				draw_line(pw - nv * (c_aw * 0.46) + dv * 1.5, pw + nv * (c_aw * 0.46) + dv * 1.5, c_mag, 1.4)
+			ell(man, 6.0, 7.5, c_pelle)
+			arto(man + Vector2(lato * 4.0, -2.0), man + Vector2(lato * 6.5, 3.0), 3.6, c_pelle)
+
+	func dis_barba() -> void:
+		var bc: Color = Color(c_cap.r, c_cap.g, c_cap.b, 1.0)
+		if c_barba == 1:
+			draw_arc(Vector2(100.0, 92.0), 19.0, 0.2, PI - 0.2, 24, Color(bc.r, bc.g, bc.b, 0.28), 9.0)
+			ell(Vector2(100.0, 105.0), 8.0, 2.4, Color(bc.r, bc.g, bc.b, 0.25))
+		elif c_barba == 2:
+			draw_arc(Vector2(100.0, 92.0), 19.0, 0.15, PI - 0.15, 24, Color(bc.r, bc.g, bc.b, 0.85), 7.0)
+			ell(Vector2(100.0, 105.5), 8.5, 2.6, bc)
+		elif c_barba == 3:
+			ell(Vector2(100.0, 113.5), 4.8, 3.6, bc)
+			ell(Vector2(100.0, 105.5), 7.5, 2.2, bc)
+		elif c_barba == 4:
+			draw_arc(Vector2(100.0, 92.0), 16.5, 0.1, PI - 0.1, 28, bc, 13.0)
+			ell(Vector2(100.0, 112.0), 10.5, 5.5, bc)
+			ell(Vector2(100.0, 105.5), 9.5, 2.8, bc)
+		elif c_barba == 5:
+			ell(Vector2(95.5, 105.5), 5.2, 2.6, bc)
+			ell(Vector2(104.5, 105.5), 5.2, 2.6, bc)
+
+	func dis_testa() -> void:
+		var hc: Vector2 = Vector2(100.0, 92.0)
+		for li in 2:
+			var lato: float = -1.0 + 2.0 * float(li)
+			ell(Vector2(100.0 + lato * 19.0, 94.0), 3.6, 6.2, c_pelle)
+			ell(Vector2(100.0 + lato * 19.2, 94.5), 1.8, 3.6, Color(c_pd.r, c_pd.g, c_pd.b, 0.7))
+		ell(hc, 19.0, 23.0, c_pelle)
+		ell(Vector2(108.0, 95.0), 10.5, 20.0, Color(0, 0, 0, 0.07))
+		ell(Vector2(92.0, 96.0), 6.0, 5.0, Color(1, 1, 1, 0.07))
+		ell(Vector2(90.0, 99.0), 5.0, 3.5, Color(0.85, 0.35, 0.3, 0.10))
+		ell(Vector2(110.0, 99.0), 5.0, 3.5, Color(0.85, 0.35, 0.3, 0.10))
+		dis_barba()
+		var brow: Color = c_cap.darkened(0.15)
+		for li in 2:
+			var lato2: float = -1.0 + 2.0 * float(li)
+			var ex: float = 100.0 + lato2 * 8.2
+			var ey: float = 88.0
+			ell(Vector2(ex, ey), 6.4, 4.0, Color(c_pd.r, c_pd.g, c_pd.b, 0.35))
+			ell(Vector2(ex, ey + 0.2), 4.4, 2.7, Color("f4f1ea"))
+			draw_circle(Vector2(ex, ey + 0.2), 2.3, c_occ)
+			draw_circle(Vector2(ex, ey + 0.2), 1.0, Color("08170f"))
+			draw_circle(Vector2(ex - 0.8, ey - 0.5), 0.6, Color.WHITE)
+			draw_arc(Vector2(ex, ey + 1.0), 4.5, PI * 1.08, PI * 1.92, 10, Color(0.15, 0.08, 0.05, 0.75), 1.4)
+			var inn: Vector2 = Vector2(ex - lato2 * 5.5, 82.6)
+			var pk: Vector2 = Vector2(ex + lato2 * 0.8, 80.6)
+			var ext: Vector2 = Vector2(ex + lato2 * 6.0, 82.6)
+			draw_line(inn, pk, brow, 2.2)
+			draw_line(pk, ext, brow, 2.0)
+		draw_line(Vector2(102.0, 89.0), Vector2(103.0, 99.0), Color(c_pd.r, c_pd.g, c_pd.b, 0.35), 2.0)
+		draw_circle(Vector2(100.0, 99.5), 3.2, Color(1, 1, 1, 0.1))
+		ell(Vector2(97.2, 102.0), 1.6, 1.0, Color(0.15, 0.08, 0.05, 0.5))
+		ell(Vector2(102.8, 102.0), 1.6, 1.0, Color(0.15, 0.08, 0.05, 0.5))
+		draw_arc(Vector2(100.0, 101.0), 4.5, 0.3, PI - 0.3, 8, Color(0, 0, 0, 0.22), 1.5)
+		var lip: Color = c_pelle.darkened(0.25).lerp(Color("b5524f"), 0.35)
+		if c_barba == 4:
+			lip = Color("d9a39f")
+		if pose == "fermo":
+			ell(Vector2(100.0, 108.2), 6.0, 1.6, lip.darkened(0.1))
+			ell(Vector2(100.0, 110.4), 5.0, 1.8, lip)
+			draw_line(Vector2(94.5, 109.2), Vector2(105.5, 109.2), Color(0.2, 0.08, 0.08, 0.6), 1.0)
+		else:
+			ell(Vector2(100.0, 110.0), 6.0, 3.8, Color("4a1414"))
+			draw_rect(Rect2(95.0, 107.6, 10.0, 2.6), Color.WHITE)
+			ell(Vector2(100.0, 112.0), 3.0, 1.4, Color("b04040"))
+		draw_arc(Vector2(100.0, 112.0), 6.0, 0.4, PI - 0.4, 8, Color(0, 0, 0, 0.1), 2.0)
+		if c_gio == 1:
+			var gold: Color = Color("f0c23a")
+			draw_circle(Vector2(81.2, 99.5), 2.0, gold)
+			draw_circle(Vector2(80.7, 99.0), 0.7, Color(1, 1, 1, 0.9))
+			draw_arc(Vector2(81.2, 101.5), 2.6, 0, PI, 8, gold, 1.2)
+
+	func dis_capelli_dietro() -> void:
+		var sc: Color = c_cap.darkened(0.25)
+		if c_stile == 3:
+			draw_circle(Vector2(100.0, 78.0), 31.0, c_cap)
+		elif c_stile == 5:
+			draw_colored_polygon(PackedVector2Array([Vector2(76.0, 80.0), Vector2(124.0, 80.0), Vector2(131.0, 152.0), Vector2(120.0, 156.0), Vector2(80.0, 156.0), Vector2(69.0, 152.0)]), c_cap)
+			draw_colored_polygon(PackedVector2Array([Vector2(100.0, 84.0), Vector2(124.0, 80.0), Vector2(131.0, 152.0), Vector2(120.0, 156.0), Vector2(100.0, 156.0)]), Color(0, 0, 0, 0.15))
+		elif c_stile == 6:
+			arto(Vector2(121.0, 82.0), Vector2(138.0, 118.0), 9.0, c_cap)
+			arto(Vector2(137.0, 116.0), Vector2(135.0, 132.0), 6.0, sc)
+			draw_circle(Vector2(123.0, 84.0), 3.0, Color("c0392b"))
+		elif c_stile == 8:
+			for i in 7:
+				var bx: float = 82.0 + 6.0 * float(i)
+				var ex: float = bx + (float(i) - 3.0) * 2.0
+				var ey: float = 132.0 + 6.0 * float(i % 2)
+				arto(Vector2(bx, 76.0), Vector2(ex, ey), 4.6, c_cap)
+				for k in 4:
+					draw_circle(Vector2(lerpf(bx, ex, 0.2 + 0.2 * float(k)), 90.0 + 11.0 * float(k)), 1.0, Color(1, 1, 1, 0.35))
+				draw_circle(Vector2(ex, ey + 1.0), 2.2, Color("f4f4f4"))
+
+	func dis_capelli_davanti() -> void:
+		var luce: Color = c_cap.lightened(0.3)
+		var scuro: Color = c_cap.darkened(0.4)
+		if c_stile == 0:
+			draw_arc(Vector2(100.0, 92.0), 20.0, PI * 1.05, PI * 1.95, 20, Color(c_cap.r, c_cap.g, c_cap.b, 0.5), 5.0)
+		elif c_stile == 1:
+			cuffia(22.0, 26.0, 76.0, c_cap)
+			draw_arc(Vector2(100.0, 92.0), 20.0, PI * 1.15, PI * 1.5, 10, luce, 2.5)
+			draw_line(Vector2(97.0, 68.0), Vector2(99.0, 77.0), scuro, 1.5)
+		elif c_stile == 2:
+			for i in 9:
+				var a2: float = PI * 0.98 + PI * 1.04 * float(i) / 8.0
+				draw_circle(Vector2(100.0, 90.0) + Vector2(cos(a2), sin(a2)) * 21.0, 7.0, c_cap)
+			draw_circle(Vector2(100.0, 70.0), 9.0, c_cap)
+			draw_circle(Vector2(92.0, 71.0), 7.5, c_cap)
+			draw_circle(Vector2(108.0, 71.0), 7.5, c_cap)
+			draw_circle(Vector2(95.0, 68.0), 2.5, luce)
+			draw_circle(Vector2(106.0, 70.0), 2.0, luce)
+		elif c_stile == 3:
+			cuffia(25.0, 29.0, 72.0, c_cap)
+			draw_arc(Vector2(100.0, 92.0), 22.0, PI * 1.2, PI * 1.6, 10, luce, 3.0)
+		elif c_stile == 4:
+			draw_arc(Vector2(100.0, 92.0), 20.0, PI * 1.05, PI * 1.95, 20, Color(c_cap.r, c_cap.g, c_cap.b, 0.5), 5.0)
+			draw_colored_polygon(PackedVector2Array([Vector2(93.0, 78.0), Vector2(94.0, 62.0), Vector2(97.0, 56.0), Vector2(100.0, 50.0), Vector2(103.0, 56.0), Vector2(106.0, 62.0), Vector2(107.0, 78.0)]), c_cap)
+			draw_line(Vector2(100.0, 53.0), Vector2(100.0, 74.0), luce, 1.5)
+		elif c_stile == 5:
+			cuffia(22.0, 26.0, 76.0, c_cap)
+			draw_rect(Rect2(77.0, 84.0, 5.0, 40.0), c_cap)
+			draw_rect(Rect2(118.0, 84.0, 5.0, 40.0), c_cap)
+			draw_line(Vector2(100.0, 66.0), Vector2(100.0, 78.0), scuro, 1.4)
+			draw_arc(Vector2(100.0, 92.0), 20.0, PI * 1.15, PI * 1.5, 10, luce, 2.5)
+		elif c_stile == 6:
+			cuffia(22.0, 26.0, 76.0, c_cap)
+			draw_arc(Vector2(100.0, 92.0), 20.0, PI * 1.15, PI * 1.5, 10, luce, 2.5)
+		elif c_stile == 7:
+			draw_rect(Rect2(81.0, 66.0, 38.0, 13.0), c_cap)
+			draw_rect(Rect2(79.0, 74.0, 5.0, 14.0), c_cap)
+			draw_rect(Rect2(116.0, 74.0, 5.0, 14.0), c_cap)
+			draw_line(Vector2(84.0, 69.0), Vector2(116.0, 69.0), luce, 1.5)
+		elif c_stile == 8:
+			cuffia(21.0, 25.0, 77.0, c_cap)
+			for i in 4:
+				var px: float = 84.0 + 10.0 * float(i)
+				draw_line(Vector2(px, 74.0), Vector2(px + (float(i) - 1.5) * 1.5, 83.0), scuro, 1.2)
+		elif c_stile == 9:
+			cuffia(22.0, 26.0, 76.0, c_cap)
+			draw_circle(Vector2(100.0, 58.0), 9.0, c_cap)
+			draw_circle(Vector2(97.0, 55.0), 2.6, luce)
+			draw_arc(Vector2(100.0, 66.0), 5.5, 0, PI, 8, Color("c0392b"), 2.0)
+		elif c_stile == 10:
+			draw_arc(Vector2(100.0, 92.0), 20.5, PI * 1.05, PI * 1.95, 20, Color(c_cap.r, c_cap.g, c_cap.b, 0.45), 8.0)
+			cuffia(15.0, 25.0, 74.0, c_cap)
+			ell(Vector2(100.0, 71.0), 11.0, 3.4, c_cap)
+			draw_arc(Vector2(100.0, 92.0), 17.0, PI * 1.25, PI * 1.55, 8, luce, 2.5)
+		elif c_stile == 11:
+			cuffia(21.0, 26.0, 73.0, c_cap)
+			for i in 6:
+				var sx: float = 86.0 + 5.6 * float(i)
+				draw_line(Vector2(sx, 77.0), Vector2(sx + (float(i) - 2.5) * 0.8, 69.0), scuro, 1.0)
+			draw_arc(Vector2(100.0, 92.0), 19.0, PI * 1.2, PI * 1.5, 8, luce, 2.5)
+
+	func dis_acc_testa() -> void:
+		if c_acc == 1:
+			arco_ell(Vector2(100.0, 94.0), 21.0, 19.0, PI * 1.1, PI * 1.9, c_mag, 6.5)
+			arco_ell(Vector2(100.0, 94.0), 21.0, 16.5, PI * 1.12, PI * 1.88, Color(1, 1, 1, 0.85), 1.6)
+			arco_ell(Vector2(100.0, 94.0), 21.0, 21.6, PI * 1.12, PI * 1.88, Color(0, 0, 0, 0.25), 1.2)
+			draw_circle(Vector2(100.0, 75.0), 1.8, Color.WHITE)
+		elif c_acc == 2:
+			arco_ell(Vector2(100.0, 94.0), 20.5, 18.0, PI * 1.1, PI * 1.9, Color("f4f4f4"), 2.8)
+		elif c_acc == 3:
+			var lente: Color = Color(0.1, 0.12, 0.2, 0.82)
+			for li in 2:
+				var lato: float = -1.0 + 2.0 * float(li)
+				var cx: float = 100.0 + lato * 8.4
+				ell(Vector2(cx, 88.0), 7.4, 4.8, lente)
+				ell_linea(Vector2(cx, 88.0), 7.4, 4.8, Color("14181f"), 1.8)
+				draw_arc(Vector2(cx - 1.5, 86.5), 3.4, PI * 1.1, PI * 1.6, 6, Color(1, 1, 1, 0.55), 1.3)
+			draw_line(Vector2(99.0, 87.0), Vector2(101.0, 87.0), Color("14181f"), 1.8)
+			draw_line(Vector2(84.4, 88.0), Vector2(80.0, 91.0), Color("14181f"), 1.6)
+			draw_line(Vector2(115.6, 88.0), Vector2(120.0, 91.0), Color("14181f"), 1.6)
+		elif c_acc == 4:
+			for li in 2:
+				var lato2: float = -1.0 + 2.0 * float(li)
+				var cx2: float = 100.0 + lato2 * 8.8
+				ell(Vector2(cx2, 88.5), 8.4, 5.6, Color(0.03, 0.03, 0.05, 0.94))
+				ell_linea(Vector2(cx2, 88.5), 8.4, 5.6, Color("111111"), 2.6)
+				draw_arc(Vector2(cx2 - 2.0, 86.8), 3.8, PI * 1.1, PI * 1.55, 6, Color(1, 1, 1, 0.45), 1.4)
+			draw_line(Vector2(99.0, 87.0), Vector2(101.0, 87.0), Color("111111"), 2.4)
+			draw_line(Vector2(83.0, 88.0), Vector2(79.5, 91.0), Color("111111"), 2.0)
+			draw_line(Vector2(117.0, 88.0), Vector2(120.5, 91.0), Color("111111"), 2.0)
+
+	func disegna_trofeo(p: Vector2) -> void:
+		draw_set_transform(_o + p * _s, 0.0, Vector2(_s, _s))
+		var oro: Color = Color("f0c23a")
+		var oro2: Color = Color("b8860b")
+		var luce: Color = Color(1, 1, 1, 0.55)
+		if trofeo == "sfera":
+			draw_rect(Rect2(-12, -6, 24, 6), oro2)
+			draw_circle(Vector2(0, -30), 22.0, oro)
+			draw_arc(Vector2(0, -30), 22.0, 0, TAU, 32, oro2, 3.0)
+			var pent: PackedVector2Array = PackedVector2Array()
+			for i in 5:
+				var a: float = -PI / 2.0 + TAU * float(i) / 5.0
+				pent.append(Vector2(0, -30) + Vector2(cos(a), sin(a)) * 8.0)
+			draw_colored_polygon(pent, oro2)
+			draw_arc(Vector2(-6, -37), 11.0, PI * 1.05, PI * 1.55, 8, luce, 3.0)
+		elif trofeo == "scarpa":
+			draw_rect(Rect2(-20, -4, 56, 5), oro2)
+			draw_colored_polygon(PackedVector2Array([Vector2(-14, -60), Vector2(8, -60), Vector2(10, -34), Vector2(30, -26), Vector2(32, -10), Vector2(-14, -10)]), oro)
+			draw_rect(Rect2(-16, -10, 50, 6), oro2)
+			for i in 4:
+				draw_rect(Rect2(-12.0 + 12.0 * float(i), -4, 5, 5), oro2)
+			draw_line(Vector2(-8, -54), Vector2(-8, -20), luce, 3.0)
+		elif trofeo == "guanto":
+			draw_rect(Rect2(-14, -4, 28, 6), oro2)
+			draw_rect(Rect2(-12, -12, 24, 10), oro2)
+			draw_rect(Rect2(-14, -36, 28, 26), oro)
+			for i in 4:
+				draw_rect(Rect2(-14.0 + 7.5 * float(i), -58.0 + 3.0 * absf(float(i) - 1.5), 6.5, 24.0), oro)
+			draw_colored_polygon(PackedVector2Array([Vector2(14, -30), Vector2(28, -42), Vector2(33, -35), Vector2(18, -18)]), oro)
+			draw_line(Vector2(-8, -30), Vector2(-8, -14), luce, 3.0)
+		else:
+			draw_rect(Rect2(-16, -8, 32, 8), oro2)
+			draw_rect(Rect2(-5, -26, 10, 18), oro)
+			draw_colored_polygon(PackedVector2Array([Vector2(-22, -70), Vector2(22, -70), Vector2(16, -40), Vector2(7, -26), Vector2(-7, -26), Vector2(-16, -40)]), oro)
+			draw_arc(Vector2(-23, -56), 9.0, PI * 0.5, PI * 1.5, 12, oro2, 4.0)
+			draw_arc(Vector2(23, -56), 9.0, -PI * 0.5, PI * 0.5, 12, oro2, 4.0)
+			draw_line(Vector2(-12, -64), Vector2(-9, -44), luce, 3.0)
+		draw_set_transform(_o, 0.0, Vector2(_s, _s))
+
+	func _draw() -> void:
+		_prep()
+		var s: float = 1.0
+		var o: Vector2 = Vector2.ZERO
+		if vista == "busto":
+			s = minf(size.x / 128.0, size.y / 136.0)
+			o = Vector2((size.x - 128.0 * s) * 0.5 - 36.0 * s, (size.y - 136.0 * s) * 0.5 - 40.0 * s)
+		elif vista == "mezzo":
+			s = minf(size.x / 148.0, size.y / 216.0)
+			o = Vector2((size.x - 148.0 * s) * 0.5 - 26.0 * s, (size.y - 216.0 * s) * 0.5 - 36.0 * s)
+		else:
+			s = minf(size.x / 200.0, size.y / 396.0)
+			o = Vector2((size.x - 200.0 * s) * 0.5, (size.y - 396.0 * s) * 0.5 + 36.0 * s)
+		_s = s
+		_o = o
+		draw_set_transform(o, 0.0, Vector2(s, s))
+		var intero: bool = vista == "intero"
+		if intero:
+			ell(Vector2(100.0, 356.0), 54.0, 6.0, Color(0, 0, 0, 0.3))
+		dis_capelli_dietro()
+		if intero:
+			dis_gambe()
+		dis_collo()
+		dis_torso()
+		dis_braccia()
+		dis_testa()
+		dis_capelli_davanti()
+		dis_acc_testa()
+		if trofeo != "" and intero:
+			var py: float = lerpf(204.0, 62.0, alza)
+			if pose == "trofeo" and alza >= 1.0:
+				py += sin(t * 3.0) * 2.5
+			draw_circle(Vector2(100.0, py - 34.0), 52.0, Color(1.0, 0.85, 0.3, 0.07))
+			draw_circle(Vector2(100.0, py - 34.0), 36.0, Color(1.0, 0.85, 0.3, 0.09))
+			disegna_trofeo(Vector2(100.0, py))
+
+
+# ================= CLASSI INTERNE: PREMIAZIONE =================
+class OverlayView extends Control:
+	var flash: Array = []
+	var coriandoli: Array = []
+	var flash_glob: float = 0.0
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		var n: int = flash.size()
+		for i in n:
+			var x: float = w * (0.07 + 0.86 * float(i) / float(maxi(1, n - 1)))
+			var y: float = h - 26.0
+			draw_rect(Rect2(x - 20.0, y - 6.0, 40.0, 40.0), Color("0a0f18"), true)
+			draw_circle(Vector2(x, y - 20.0), 13.0, Color("0a0f18"))
+			draw_rect(Rect2(x - 15.0, y - 30.0, 30.0, 18.0), Color("1c2733"), true)
+			draw_circle(Vector2(x, y - 21.0), 6.5, Color("2c3e50"))
+			draw_circle(Vector2(x, y - 21.0), 3.0, Color("6fa8dc"))
+			var f: float = float(flash[i])
+			if f > 0.0:
+				var k: float = f / 0.22
+				var c0: Vector2 = Vector2(x, y - 21.0)
+				draw_circle(c0, 30.0 * k, Color(1, 1, 0.9, 0.5 * k))
+				for a in 4:
+					var ang: float = PI * 0.25 + PI * 0.5 * float(a)
+					draw_line(c0, c0 + Vector2(cos(ang), sin(ang)) * 44.0 * k, Color(1, 1, 0.9, k), 2.0)
+		for c in coriandoli:
+			var p: Vector2 = c["p"]
+			var r: float = float(c["r"])
+			var ln: float = float(c["w"])
+			var col: Color = c["c"]
+			draw_line(p, p + Vector2(cos(r), sin(r)) * ln, col, 3.0)
+		if flash_glob > 0.0:
+			draw_rect(Rect2(0, 0, w, h), Color(1, 1, 1, flash_glob * 0.35), true)
+
+
+class CerimoniaView extends Control:
+	signal scatto
+	signal alzata
+	const N_FOT := 9
+	var avatar: AvatarView
+	var overlay: OverlayView
+	var titolo_t: String = ""
+	var sotto: String = ""
+	var t: float = 0.0
+	var flash: Array = []
+	var luci: Array = []
+	var pubblico: Array = []
+	var coriandoli: Array = []
+	var burst1: bool = false
+	var burst2: bool = false
+	var flash_glob: float = 0.0
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(0, 500)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		avatar = AvatarView.new()
+		avatar.animato = true
+		avatar.pose = "trofeo"
+		avatar.alza = 0.0
+		add_child(avatar)
+		for i in N_FOT:
+			flash.append(0.0)
+		overlay = OverlayView.new()
+		overlay.flash = flash
+		overlay.coriandoli = coriandoli
+		add_child(overlay)
+		var cols: Array = [Color("2c3e50"), Color("4a235a"), Color("1b4f72"), Color("7b241c"), Color("1d8348"), Color("7d6608"), Color("424949")]
+		for r in 6:
+			for c in 60:
+				pubblico.append([Vector2((float(c) + randf() * 0.6) / 60.0, 0.04 + float(r) * 0.055 + randf() * 0.01), cols[randi() % cols.size()]])
+		for i in 14:
+			luci.append([randi() % pubblico.size(), 0.0])
+
+	func configura(a: Dictionary, k: Array, n: String, nome_t: String, sub: String, f: String) -> void:
+		titolo_t = nome_t
+		sotto = sub
+		avatar.trofeo = f
+		avatar.imposta(a, k, n)
+
+	func spawn(n: int) -> void:
+		var cols: Array = [Color("f0c23a"), Color("ffffff"), Color("3fbf78"), Color("e5695f"), Color("5aa9ff")]
+		for i in n:
+			coriandoli.append({"p": Vector2(randf() * size.x, -10.0 - randf() * 80.0), "v": Vector2(randf_range(-60.0, 60.0), randf_range(60.0, 220.0)), "c": cols[randi() % cols.size()], "r": randf() * 6.28, "w": randf_range(4.0, 9.0)})
+
+	func _process(delta: float) -> void:
+		t += delta
+		var ph: float = clampf((t - 1.4) / 1.2, 0.0, 1.0)
+		avatar.alza = ph * ph * (3.0 - 2.0 * ph)
+		var av_w: float = 240.0
+		var av_h: float = 390.0
+		avatar.size = Vector2(av_w, av_h)
+		avatar.position = Vector2(size.x * 0.5 - av_w * 0.5, size.y - av_h - 54.0)
+		overlay.size = size
+		overlay.position = Vector2.ZERO
+		for i in flash.size():
+			flash[i] = maxf(0.0, float(flash[i]) - delta)
+			if t > 1.0 and randf() < delta * (0.5 + 0.7 * avatar.alza):
+				flash[i] = 0.22
+				flash_glob = 0.12
+				scatto.emit()
+		flash_glob = maxf(0.0, flash_glob - delta)
+		overlay.flash_glob = flash_glob
+		for l in luci:
+			l[1] = maxf(0.0, float(l[1]) - delta)
+			if randf() < 0.08:
+				l[0] = randi() % pubblico.size()
+				l[1] = 0.18
+		if t >= 2.6 and not burst1:
+			burst1 = true
+			spawn(120)
+			alzata.emit()
+		if t >= 5.5 and not burst2:
+			burst2 = true
+			spawn(120)
+		var i2: int = coriandoli.size() - 1
+		while i2 >= 0:
+			var c: Dictionary = coriandoli[i2]
+			var v: Vector2 = c["v"]
+			v.y += 40.0 * delta
+			c["v"] = v
+			var p: Vector2 = c["p"]
+			p += v * delta
+			c["p"] = p
+			c["r"] = float(c["r"]) + delta * 5.0
+			if p.y > size.y + 20.0:
+				coriandoli.remove_at(i2)
+			i2 -= 1
+		queue_redraw()
+		overlay.queue_redraw()
+
+	func _draw() -> void:
+		var w: float = size.x
+		var h: float = size.y
+		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]), PackedColorArray([Color("050b14"), Color("050b14"), Color("14263d"), Color("14263d")]))
+		draw_rect(Rect2(0, 0, w, h * 0.42), Color("0b1220"), true)
+		for p in pubblico:
+			var q: Vector2 = p[0]
+			draw_circle(Vector2(q.x * w, q.y * h), 4.0, p[1])
+		for l in luci:
+			if float(l[1]) > 0.0:
+				var q2: Vector2 = pubblico[int(l[0])][0]
+				draw_circle(Vector2(q2.x * w, q2.y * h), 3.5, Color(1, 1, 0.9, minf(1.0, float(l[1]) * 6.0)))
+		for k in 2:
+			var x0: float = w * (0.18 + 0.64 * float(k)) + sin(t * 0.8 + float(k) * 2.0) * 30.0
+			draw_colored_polygon(PackedVector2Array([Vector2(x0, 0), Vector2(x0 - 90.0, h * 0.9), Vector2(x0 + 90.0, h * 0.9)]), Color(1, 0.95, 0.75, 0.07))
+		draw_rect(Rect2(0, h * 0.62, w, h * 0.38), Color("17653a"), true)
+		for i in 8:
+			if i % 2 == 0:
+				draw_rect(Rect2(w * float(i) / 8.0, h * 0.62, w / 8.0, h * 0.38), Color(1, 1, 1, 0.03), true)
+		draw_rect(Rect2(w * 0.5 - 150.0, h - 58.0, 300.0, 18.0), Color("3a2a10"), true)
+		draw_rect(Rect2(w * 0.5 - 150.0, h - 58.0, 300.0, 4.0), Color("f0c23a"), true)
+		var a1: float = clampf((t - 0.3) / 0.6, 0.0, 1.0)
+		draw_string(ThemeDB.fallback_font, Vector2(0, 62), titolo_t, HORIZONTAL_ALIGNMENT_CENTER, w, 42, Color(0.94, 0.76, 0.23, a1))
+		draw_string(ThemeDB.fallback_font, Vector2(0, 96), sotto, HORIZONTAL_ALIGNMENT_CENTER, w, 20, Color(1, 1, 1, a1 * 0.9))
